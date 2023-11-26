@@ -1,12 +1,12 @@
 /*
-Give me some base for cBpTree class implementation of B+ tree, which will include root node cNode(which can have child types cLeafNode or cRootNode, 
+Give me some base for cBpTree class implementation of B+ tree, which will include inner node cNode(which can have child types cLeafNode or cInnerNode, 
 cNode itself should only include common nData char* pointer, where all data of nodes will be stored, including its count of elements on the start of nData). 
 In its constructor there will be tupLen attribute, specifying size of cTuple (class encapsulating n*type array, include its specification). 
 We will also need to specify number of indexed and nonindexed attributes. For simplicity, we can assume n1 will be number of indexed attributes, 
-which will be first n tupple attributes. n2 will be rest of the tuple. We also need to specify max RootNode and LeafNode elements. 
+which will be first n tupple attributes. n2 will be rest of the tuple. We also need to specify max InnerNode and LeafNode elements. 
 All important information will be stored in object of cTreeMetadata class, 
-which I also want you to create, please include even tree order and height. Tree itself should only contain the root node and methods for work with it. In implementation, I plan to always 
-start the BpTree with cLeafNode. After it gets filled up, then I will create cRootNode based on it and do a split. 
+which I also want you to create, please include even tree order and height. Tree itself should only contain the inner node and methods for work with it. In implementation, I plan to always 
+start the BpTree with cLeafNode. After it gets filled up, then I will create cInnerNode based on it and do a split. 
 cTuple should be typed, so I can specify its type in constructor. However, the nData array should be char*. nData will fit n * type + (2 * sizeof(int)) to store count of elements.
 Likewise, cNode should be typed, so I can specify its type in constructor and determine size of nData.
 I need to implement insert and search methods for B+ tree.
@@ -19,48 +19,51 @@ Only arrays should be used.
 template<typename T> class cBpTree;
 template<typename T> class cNode;
 template<typename T> class cLeafNode;
-template<typename T> class cRootNode;
+template<typename T> class cInnerNode;
 
 template<typename TT>
 class cTreeMetadata {
 public:
     // Constructor
-    cTreeMetadata(int n, int n1, int n2, int maxRootNodeElements, int maxLeafNodeElements) : 
+    cTreeMetadata(int n, int n1, int n2, int maxInnerNodeElements, int maxLeafNodeElements) : 
         n(n), 
         n1(n1), 
         n2(n2), 
-        maxRootNodeElements(maxRootNodeElements),
+        maxInnerNodeElements(maxInnerNodeElements),
         maxLeafNodeElements(maxLeafNodeElements),
         order(0),
         tupleCount(0),
         leafNodeCount(0),
-        rootNodeCount(0),
+        innerNodeCount(0),
         nDataIsLeafNodeBShift(0),
         nDataCountBShift(4),
         nDataStartBShift(8) {
             attrSize = sizeof(TT);
             nDataSizeLeaf = (nDataStartBShift) + (attrSize * n * maxLeafNodeElements);
-            nDataSizeRoot = (nDataStartBShift) + (sizeof(char*) * (n + 1)) + (sizeof(TT) * n * maxRootNodeElements);
+            nDataSizeInner = (nDataStartBShift) + ((sizeof(char*) + (n1 * attrSize * 2)) * maxInnerNodeElements);
             nDataElementLeafSize = attrSize * n;
-            nDataElementRootSize = (n1 * attrSize);
+            nDataElementInnerSize = (n1 * attrSize * 2) + sizeof(char*);
+            nDataElementInnerTupleSize = n1 * attrSize;
+            halfInnerNode = maxInnerNodeElements/2;
+            halfLeafNode = maxLeafNodeElements/2;
         }
     void printMetadata() {
         std::cout << "n: " << n << std::endl;
         std::cout << "n1: " << n1 << std::endl;
         std::cout << "n2: " << n2 << std::endl;
-        std::cout << "maxRootNodeElements: " << maxRootNodeElements << std::endl;
+        std::cout << "maxInnerNodeElements: " << maxInnerNodeElements << std::endl;
         std::cout << "maxLeafNodeElements: " << maxLeafNodeElements << std::endl;
         std::cout << "order: " << order << std::endl;
         std::cout << "tupleCount: " << tupleCount << std::endl;
         std::cout << "leafNodeCount: " << leafNodeCount << std::endl;
-        std::cout << "rootNodeCount: " << rootNodeCount << std::endl;
+        std::cout << "innerNodeCount: " << innerNodeCount << std::endl;
         std::cout << "nDataIsLeafNodeBShift: " << nDataIsLeafNodeBShift << std::endl;
         std::cout << "nDataCountBShift: " << nDataCountBShift << std::endl;
         std::cout << "nDataStartBShift: " << nDataStartBShift << std::endl;
         std::cout << "nDataSizeLeaf: " << nDataSizeLeaf << std::endl;
-        std::cout << "nDataSizeRoot: " << nDataSizeRoot << std::endl;
+        std::cout << "nDataSizeInner: " << nDataSizeInner << std::endl;
         std::cout << "nDataElementLeafSize: " << nDataElementLeafSize << std::endl;
-        std::cout << "nDataElementRootSize: " << nDataElementRootSize << std::endl;
+        std::cout << "nDataElementInnerSize: " << nDataElementInnerSize << std::endl;
     }
 
 private:
@@ -68,17 +71,20 @@ private:
     int n; // Number of attributes
     int n1; // Number of indexed attributes
     int n2; // Number of non-indexed attributes
-    int maxRootNodeElements; // Maximum number of elements in a root node
+    int maxInnerNodeElements; // Maximum number of elements in a inner node
     int maxLeafNodeElements; // Maximum number of elements in a leaf node
     int attrSize; // Size of an attribute
     int nDataSizeLeaf; // Size of nData in a leaf node
-    int nDataSizeRoot; // Size of nData in a root node
+    int nDataSizeInner; // Size of nData in a inner node
+    int halfInnerNode; // Index of middle element of inner node, last element of first half after split
+    int halfLeafNode; // Index of middle element of leaf node, last element of first half after split
 
     //Counters
     int order; // The order of the B+ tree
     int tupleCount; // Count of tuples in the B+ tree
+    int innerElemCount; //Count of elements in inner nodes of B+ tree. Element is a pair of range and reference
     int leafNodeCount; // Count of leaf nodes in the B+ tree
-    int rootNodeCount; // Count of root nodes in the B+ tree
+    int innerNodeCount; // Count of inner nodes in the B+ tree
 
     //nData Byte Shifts
     int nDataCountBShift; // Count of tuples of nData in nData
@@ -86,12 +92,13 @@ private:
     int nDataStartBShift; // Start of nData in nData
 
     int nDataElementLeafSize; // Size of an element in a leaf node, element is tuple of n attributes
-    int nDataElementRootSize; // Size of an element in a root node, element is tuple of indexed n (n1) attributes
+    int nDataElementInnerSize; // Size of an element in a inner node, element is lowTuple, highTuple and reference to child node
+    int nDataElementInnerTupleSize; // Size of a tuple in an element in a inner node
 
     template<typename T> friend class cBpTree;
     template<typename T> friend class cNode;
     template<typename T> friend class cLeafNode;
-    template<typename T> friend class cRootNode;
+    template<typename T> friend class cInnerNode;
 };
 
 template<typename T>
@@ -125,16 +132,37 @@ public:
         std::memcpy(&extractedInt, nData + metadata->nDataIsLeafNodeBShift, sizeof(int));
         return extractedInt != 0;
     }
+    bool setLeafNode(bool isLeafNode) {
+        // Implementation for setLeafNode method
+        int extractedInt = isLeafNode ? 1 : 0;
+        std::memcpy(nData + metadata->nDataIsLeafNodeBShift, &extractedInt, sizeof(int));
+        return isLeafNode;
+    }
     int getCount() {
         // Implementation for getCount method
         int extractedInt = 0;
         std::memcpy(&extractedInt, nData + metadata->nDataCountBShift, sizeof(int));
         return extractedInt;
     }
+    int setCount(int count) {
+        // Implementation for setCount method
+        std::memcpy(nData + metadata->nDataCountBShift, &count, sizeof(int));
+        return count;
+    }
+    int incrementCount(int incrementBy = 1) {
+        // Implementation for incrementCount method
+        int count = getCount();
+        count = count + incrementBy;
+        std::memcpy(nData + metadata->nDataCountBShift, &count, sizeof(int));
+        return count;
+    }
+
+    virtual bool split() = 0;
 
 protected:
     char* nData; // Data of the node
     cTreeMetadata<T> * metadata; // Metadata of the tree
+    cInnerNode * parent;
 
     template<typename TT> friend class cBpTree;
 };
@@ -146,10 +174,8 @@ class cLeafNode : public cNode<T> {
     // Leaf nodes have mData structure as follows: int isLeaf, int count, T* data 
     cLeafNode(cTreeMetadata<T> * metadata) : cNode<T>(metadata) {
         this->nData = new char[metadata->nDataSizeLeaf];
-        int zero = 0;
-        int one = 1;
-        std::memcpy(this->nData + metadata->nDataIsLeafNodeBShift, &one, sizeof(int));
-        std::memcpy(this->nData + metadata->nDataCountBShift, &zero, sizeof(int));
+        this->setCount(0);
+        this->setLeafNode(true);
         metadata->leafNodeCount++;
     }
     ~cLeafNode() {
@@ -174,21 +200,52 @@ class cLeafNode : public cNode<T> {
         }
         printf("]\n");
     }
+    bool split() override {
+        int count = this->getCount();
+        if(count < this->metadata->maxLeafNodeElements)
+            return false;
+        cLeafNode* second = new cLeafNode<T>(this->metadata);
+        //copy second half of elements to second node
+        memcpy(
+            second->nData + this->metadata->nDataStartBShift, 
+            this->nData + this->metadata->nDataStartBShift + (this->metadata->nDataElementLeafSize * this->metadata->halfLeafNode), 
+            this->metadata->nDataElementLeafSize * (this->metadata->maxLeafNodeElements - this->metadata->halfLeafNode)
+        );
+        int countSecond = this->metadata->maxLeafNodeElements - this->metadata->halfLeafNode;
+        //set count of second node
+        second->setCount(countSecond);
+        //set count of first node
+        this->setCount(this->metadata->halfLeafNode);
+
+        //take care of parent node, init if not initialized and set parent of second node, This can happen only once
+        if(this->parent == nullptr){
+            //create new parent node
+            cInnerNode* parent = new cInnerNode<T>(this->metadata);
+            this->parent = parent;
+            //set first element of parent node, start at nDataStartBShift, save first n1 elements of first tuple from this->nData, then save first n1 elements of last tuple from this->nData and append pointerto this node
+            memcpy(
+                parent->nData + this->metadata->nDataStartBShift, 
+                this->nData + this->metadata->nDataStartBShift, 
+                this->metadata->nDataElementLeafSize
+            );
+        }
+        second->parent = this->parent;
+    }
 };
 
 template<typename T>
-class cRootNode : public cNode<T> {
+class cInnerNode : public cNode<T> {
     public:
-    // Implementation for root node
-    // Leaf nodes have mData structure as follows: int isLeaf, int count, cNode* child[0], T data[0], cNode* child[1], T data[1], ... , T data[n-1], cNode* child[n]
-    cRootNode(cTreeMetadata<T> * metadata): cNode<T>(metadata) {
-        this->nData = new char[metadata->nDataSizeRoot];
-        int zero = 0;
-        std::memcpy(this->nData + metadata->nDataIsLeafNodeBShift, &zero, sizeof(int));
-        std::memcpy(this->nData + metadata->nDataCountBShift, &zero, sizeof(int));
-        this->metadata->rootNodeCount++;
+    // Implementation for inner node
+    // inner nodes have mData structure as follows: int isLeaf, int count, [cNode* child[i], range[i]], where range is (tupleLow, tupleHigh), values in child are >= tupleLow and <= tupleHigh
+    cInnerNode(cTreeMetadata<T> * metadata): cNode<T>(metadata) {
+        this->nData = new char[metadata->nDataSizeInner];
+        this->setCount(0);
+        this->setLeafNode(false);
+        this->metadata->innerNodeCount++;
+        this->metadata->
     }
-    ~cRootNode() {
+    ~cInnerNode() {
         delete[] this->nData;
     }
     cNode<T>* getChildPtr(int index) {
@@ -198,6 +255,38 @@ class cRootNode : public cNode<T> {
     char* getElementPtr(int index) {
         // Implementation for getElementPtr method
         return this->nData + this->metadata->nDataStartBShift + (sizeof(cNode<T>*) * (index + 1)) + (this->metadata->attrSize * index);
+    }
+    bool addElement(cTuple<T>* tupleLow, cTuple<T>* tupleHigh, cNode<T>* child) {
+        // Implementation for addElement method, always inserts at end, therefore good only when we know order wont get changed
+        int index = this->getCount();
+        if(tupleLow->n < this->metadata->n1 || tupleHigh->n < this->metadata->n1)
+            return false;
+        //If there are elements present, find the right place to insert
+        memcpy(
+            this->nData + this->metadata->nDataStartBShift + (index * this->metadata->nDataElementInnerSize), 
+            tupleLow->attributes, 
+            this->metadata->nDataElementInnerTupleSize
+        );
+        memcpy(
+            this->nData + this->metadata->nDataStartBShift + (index * this->metadata->nDataElementInnerSize) + this->metadata->nDataElementInnerTupleSize, 
+            tupleHigh->attributes, 
+            this->metadata->nDataElementInnerTupleSize
+        );
+        memcpy(
+            this->nData + this->metadata->nDataStartBShift + (index * this->metadata->nDataElementInnerSize) + (this->metadata->nDataElementInnerTupleSize * 2), 
+            &child, 
+            sizeof(cNode<T>*)
+        );
+        return true;
+    }
+    bool splitElement(int index, cTuple<T>* firstTupleHigh, cTuple<T>* secondTupleLow) {
+        if(index < 0 || index >= this->getCount() || this->getCount() >= this->metadata->maxInnerNodeElements)
+            return false;
+        // Implementation for splitElement method
+        //split element at index into two elements, first element will be at index, second element will be at index + 1, all elements from index + 1 will be moved to the right
+        //first element will have original tupleLow and tupleHigh = firstTupleHigh, second element will have tupleLow = secondTupleLow and original tupleHigh
+        //after splitting element, split child node of element at index with address
+
     }
 };
 
@@ -209,9 +298,9 @@ private:
     cTreeMetadata<T> * metadata;
 
 public:
-    cBpTree(int tupLen, int n1, int n2, int maxRootNodeElements, int maxLeafNodeElements){
-        //start with leaf node, after it overflows, it will be split into root node
-        this->metadata = new cTreeMetadata<T>(tupLen, n1, n2, maxRootNodeElements, maxLeafNodeElements);
+    cBpTree(int tupLen, int n1, int n2, int maxInnerNodeElements, int maxLeafNodeElements){
+        //start with leaf node, after it overflows, it will be split into inner node
+        this->metadata = new cTreeMetadata<T>(tupLen, n1, n2, maxInnerNodeElements, maxLeafNodeElements);
         this->root = new cLeafNode<T>(this->metadata);
     }
 
@@ -274,22 +363,22 @@ public:
                     metadata->tupleCount++;
                     return true;
                 } else {
-                    //split leaf node into root node
+                    //split leaf node into inner node
                     return false;
                 }
             } else {
                 //If we traverse all elements, we can notice that when we are searching for the right interval, it is always the child on the right side of the element.
                 //When we finally find an element, that is greater than tuple to be inserted, child from left side is evaluated as the suitor and saved. We search no further.
-                //Case when it never is on the left side is takne into consideration as well
-                cRootNode<T>* rootNode = (cRootNode<T>*)node;
-                int count = rootNode->getCount();
+                //Case when it never is on the left side is taken into consideration as well
+                cInnerNode<T>* innerNode = (cInnerNode<T>*)node;
+                int count = innerNode->getCount();
                 cNode<T>* childNode = nullptr;
                 bool childNodeFound = false;
                 for(int i = 0; i < count && !childNodeFound; i++) {
                     //find child node
-                    cNode<T>* leftChildNode = rootNode->getChildPtr(i);
-                    char* nodeElement = rootNode->getElementPtr(i);
-                    cNode<T>* rightChildNode = rootNode->getChildPtr(i+1);
+                    cNode<T>* leftChildNode = innerNode->getChildPtr(i);
+                    char* nodeElement = innerNode->getElementPtr(i);
+                    cNode<T>* rightChildNode = innerNode->getChildPtr(i+1);
                     for(int j = 0; j < metadata->n1; j++) {
                         //compare tuple with node element
                         if(tuple.attributes[j] < nodeElement[j]) {
@@ -311,12 +400,13 @@ public:
                 }
             }
         }
+        return false;
     }
 
     void search(cTuple<T>& tuple) {
         // Implementation for search method
     }
-    void printRootNode(){
+    void printInnerNode(){
         cLeafNode<T>* leafNode = (cLeafNode<T>*)this->root;
         leafNode->printTuples();
     }

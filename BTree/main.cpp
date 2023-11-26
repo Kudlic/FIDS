@@ -3,7 +3,7 @@
 
 int main() {
     // Create a B+ tree with 2 indexed attributes and 2 non-indexed attributes
-    // and maximum 3 elements in a root node and 8 elements in a leaf node
+    // and maximum 3 elements in a inner node and 8 elements in a leaf node
     cBpTree<int> tree(4, 2, 2, 3, 8);
 
     // Insert some data
@@ -16,7 +16,7 @@ int main() {
         }
     }
     tree.printMetadata();
-    tree.printRootNode();
+    tree.printInnerNode();
     cTuple searchTup = cTuple(new int[4]{1, 0, 18, 32}, 4);
     tree.search(searchTup);
 
