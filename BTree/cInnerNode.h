@@ -40,37 +40,33 @@ class cInnerNode : public cNode<T> {
     char* getElementPtr(int index) {
         return this->nData + this->metadata->nDataStartBShift + (index * this->metadata->nDataElementInnerSize);
     }
-    bool widenHigh(int index, cTuple<T>* tupleHigh) {
+    bool widenHigh(int index, cTuple<T>* tuple) {
         if(index < 0 || index >= this->getCount())
             return false;
-        //Copy only those attributes which are higher in tupleHigh
-        for(int i = 0; i < this->metadata->n1; i++) {
-            if(
-                *reinterpret_cast<T*>(tupleHigh->attributes + i*this->metadata->attrSize) 
-                > 
-                *reinterpret_cast<T*>(this->getTupleHighPtr(index) + i*this->metadata->attrSize)) {
+        //If tupleHigh is lower than tuple, widen it
+        cTuple<T> *tupleHigh = new cTuple<T> ((T*)this->getTupleHighPtr(index), this->metadata->n1);
+        if(tuple->isGT(*tupleHigh)) {
+            {
                 memcpy(
-                    this->getTupleHighPtr(index) + i*this->metadata->attrSize, 
-                    tupleHigh->attributes + i*this->metadata->attrSize, 
-                    this->metadata->attrSize
+                    this->getTupleHighPtr(index), 
+                    tuple->attributes, 
+                    this->metadata->attrSize * this->metadata->n1
                 );
             }
         }
         return true;
     }
-    bool widenLow(int index, cTuple<T>* tupleLow) {
+    bool widenLow(int index, cTuple<T>* tuple) {
         if(index < 0 || index >= this->getCount())
             return false;
-        //Copy only those attributes which are lower in tupleLow
-        for(int i = 0; i < this->metadata->n1; i++) {
-            if(
-                *reinterpret_cast<T*>(tupleLow->attributes + i*this->metadata->attrSize) 
-                < 
-                *reinterpret_cast<T*>(this->getTupleLowPtr(index) + i*this->metadata->attrSize)) {
+        //If tupleLow is lower than tuple, widen it
+        cTuple<T> *tupleLow = new cTuple<T> ((T*)this->getTupleLowPtr(index), this->metadata->n1);
+        if(tuple->isLT(*tupleLow)) {
+            {
                 memcpy(
-                    this->getTupleLowPtr(index) + i*this->metadata->attrSize, 
-                    tupleLow->attributes + i*this->metadata->attrSize, 
-                    this->metadata->attrSize
+                    this->getTupleLowPtr(index), 
+                    tuple->attributes, 
+                    this->metadata->attrSize * this->metadata->n1
                 );
             }
         }
@@ -79,28 +75,25 @@ class cInnerNode : public cNode<T> {
     bool setHigh(int index, cTuple<T>* tupleHigh) {
         if(index < 0 || index >= this->getCount())
             return false;
-        for(int i = 0; i < this->metadata->n1; i++) {
-            memcpy(
-                this->getTupleHighPtr(index), 
-                tupleHigh->attributes, 
-                this->metadata->attrSize * this->metadata->n1
-            );
-        }
+        memcpy(
+            this->getTupleHighPtr(index), 
+            tupleHigh->attributes, 
+            this->metadata->attrSize * this->metadata->n1
+        );
         return true;
     }
     bool setLow(int index, cTuple<T>* tupleLow) {
         if(index < 0 || index >= this->getCount())
             return false;
-        for(int i = 0; i < this->metadata->n1; i++) {
-            memcpy(
-                this->getTupleLowPtr(index), 
-                tupleLow->attributes, 
-                this->metadata->attrSize * this->metadata->n1
-            );
-        }
+        memcpy(
+            this->getTupleLowPtr(index), 
+            tupleLow->attributes, 
+            this->metadata->attrSize * this->metadata->n1
+        );
         return true;
     }
     bool adjustRange(int index) {
+        //Adjust range should check for first elements that are not equal to its parent and adjust range accordingly
         //TODO: implement for inner node type children
         if(index < 0 || index >= this->getCount())
             return false;
@@ -115,12 +108,12 @@ class cInnerNode : public cNode<T> {
     }
 
     bool addElement(cTuple<T>* tupleLow, cTuple<T>* tupleHigh, cNode<T>* child, int index = -1) {
-        // Implementation for addElement method, always inserts at end, therefore good only when we know order wont get changed
+        // Implementation for addElement method, finds correct possition
         if(index < 0){
             index = this->getCount();
         }
         else{
-            if(index < 0 || index > this->getCount())
+            if(index > this->getCount())
                 return false;
             //Make space for new element
             memcpy(
@@ -150,7 +143,8 @@ class cInnerNode : public cNode<T> {
         );
         // TODO: check for overflow
         this->incrementCount();
-
+        if(this->getCount() >= this->metadata->maxInnerNodeElements)
+            printf("Overflow, InnerNode split should be there!\n");
         return true;
     }
     //TODO: implement insert for inner node type children
@@ -181,8 +175,14 @@ class cInnerNode : public cNode<T> {
                 cTuple<T> *tupleHighObj = new cTuple<T> ((T*)tupleHigh, this->metadata->n1);
 
                 if(tuple->isLT(*tupleLowObj)) {
-                    childIndex = std::max(i-1, 0);
-                    this->widenHigh(childIndex, tuple);
+                    if(i == 0){
+                        childIndex = 0;
+                        this->widenLow(childIndex, tuple);
+                    }
+                    else{
+                        childIndex = i-1;
+                        this->widenHigh(childIndex, tuple);
+                    }
                     child = dynamic_cast<cLeafNode<T>*>(this->getChild(childIndex));
                     break;
                 }

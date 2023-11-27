@@ -21,6 +21,14 @@ Only arrays should be used.
 #include "cLeafNode.h"
 #include "cInnerNode.h"
 
+//TODO list:
+//  - implement linked list of leaf nodes
+//    - customise metadata, it might be tricky and may require splitting start of nData for leaves and for inner nodes
+//    - implement pointer serialisation
+//    - take care of proper updating when inserting between leaves
+//  - implement point search
+//  - implement range search using linked list
+//  - implement delete
 template<typename T>
 class cBpTree {
 private:

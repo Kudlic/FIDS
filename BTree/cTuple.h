@@ -18,19 +18,6 @@ public:
         }
         printf("\n");
     }
-
-    bool isTupleBetween(cTuple<T>& tuple1, cTuple<T>& tuple2, int n = -1) {
-        // Implementation for isTupleBetween method
-        if(n == -1){
-            n = tuple1.n;
-        }
-        for(int i = 0; i < n; i++){
-            if(attributes[i] < tuple1.attributes[i] || attributes[i] > tuple2.attributes[i]){
-                return false;
-            }
-        }
-        return true;
-    }
     bool isEQ(cTuple<T>& tuple, int n = -1) {
         // Implementation for isTupleEqual method
         if(n == -1){
@@ -44,52 +31,55 @@ public:
         return true;
     }
     bool isLT(cTuple<T>& tuple, int n = -1) {
-        // Implementation for isTupleLessThan method
         if(n == -1){
             n = tuple.n;
         }
         for(int i = 0; i < n; i++){
-            if(attributes[i] > tuple.attributes[i]){
-                return false;
+            if(attributes[i] != tuple.attributes[i]){
+                return attributes[i] < tuple.attributes[i];
             }
         }
-        return true;
+        return false;
     }
     bool isGT(cTuple<T>& tuple, int n = -1) {
-        // Implementation for isTupleGreaterThan method
         if(n == -1){
             n = tuple.n;
         }
         for(int i = 0; i < n; i++){
-            if(attributes[i] < tuple.attributes[i]){
-                return false;
+            if(attributes[i] != tuple.attributes[i]){
+                return attributes[i] > tuple.attributes[i];
             }
         }
-        return true;
+        return false;
     }
     bool isLEQT(cTuple<T>& tuple, int n = -1) {
-        // Implementation for isTupleLessThan method
         if(n == -1){
             n = tuple.n;
         }
         for(int i = 0; i < n; i++){
-            if(attributes[i] >= tuple.attributes[i]){
-                return false;
+            if(attributes[i] != tuple.attributes[i]){
+                return attributes[i] < tuple.attributes[i];
             }
         }
         return true;
     }
     bool isGEQT(cTuple<T>& tuple, int n = -1) {
-        // Implementation for isTupleGreaterThan method
         if(n == -1){
             n = tuple.n;
         }
         for(int i = 0; i < n; i++){
-            if(attributes[i] <= tuple.attributes[i]){
-                return false;
+            if(attributes[i] != tuple.attributes[i]){
+                return attributes[i] > tuple.attributes[i];
             }
         }
         return true;
+    }
+    bool isTupleBetween(cTuple<T>& tuple1, cTuple<T>& tuple2, int n = -1) {
+        // Implementation for isTupleBetween method
+        if(n == -1){
+            n = tuple1.n;
+        }
+        return tuple1.isLEQT(*this, n) && tuple2.isGEQT(*this, n);
     }
 
     float getTupleDistance(cTuple<T>& tuple, int n = -1) {
