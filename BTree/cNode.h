@@ -39,11 +39,7 @@ public:
         std::memcpy(nData + metadata->nDataCountBShift, &count, sizeof(int));
         return count;
     }
-    virtual int insertTuple(cTuple<T>* tuple) {
-        return -1;
-    }
-
-    virtual cNode* split() {return nullptr;}
+    virtual cNode* split(int splitNodeIndex) {return nullptr;}
     virtual void printNodes(bool printSubtree = false, int level = 0) {}
 
 protected:

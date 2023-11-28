@@ -52,6 +52,7 @@ class cLeafNode : public cNode<T> {
         }
         printf("]\n");
     }
+    //insert tuple into leaf node, keeps node ordered
     int insertTuple(cTuple<T>* tuple){
         // Implementation for insertTuple method
         int count = this->getCount();
@@ -87,7 +88,11 @@ class cLeafNode : public cNode<T> {
         this->metadata->tupleCount++;
         return i;
     }
-    cLeafNode* split() override {
+    cNode<T>* split(int splitNodeIndex) override {
+        // Splits the LeafNode into two LeafNodes,
+        // If there is no parent node, creates a new parent node and initializes first range and sets split child pointer to it
+        // Sets parent of second node to parent of first node, inserts second node and its range into parent node
+        // Returns parent node
         int count = this->getCount();
         if(count < this->metadata->maxLeafNodeElements)
             return nullptr;
@@ -107,18 +112,17 @@ class cLeafNode : public cNode<T> {
         //take care of parent node, init if not initialized and set parent of second node, This can happen only once
         if(this->parent == nullptr){
             //create new parent node
-            cNode<T>* parent = new cInnerNode<T>(this->metadata);
-            
+            cInnerNode<T>* parent = new cInnerNode<T>(this->metadata);
             this->parent = parent;
-            //set first element of parent node, start at nDataStartBShift, save first n1 elements of first tuple from this->nData, then save first n1 elements of last tuple from this->nData and append pointerto this node
-            memcpy(
-                parent->nData + this->metadata->nDataStartBShift, 
-                this->nData + this->metadata->nDataStartBShift, 
-                this->metadata->nDataElementLeafSize
-            );
-            
+            this->metadata->order++;
+            //set first element of parent node, also describable as first InnerNode element and parent of split leafNode
+            parent->addElement(this);
+        }
+        else{
+            dynamic_cast<cInnerNode<T>*>(this->parent)->adjustRange(splitNodeIndex);
         }
         second->parent = this->parent;
-        return second;
+        dynamic_cast<cInnerNode<T>*>(second->parent)->addElement(second, splitNodeIndex+1);
+        return second->parent;
     }
 };

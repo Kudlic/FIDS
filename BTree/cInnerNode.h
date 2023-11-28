@@ -40,6 +40,7 @@ class cInnerNode : public cNode<T> {
     char* getElementPtr(int index) {
         return this->nData + this->metadata->nDataStartBShift + (index * this->metadata->nDataElementInnerSize);
     }
+    //Less strict setHigh. Sets tuple only if it is higher than current tupleHigh
     bool widenHigh(int index, cTuple<T>* tuple) {
         if(index < 0 || index >= this->getCount())
             return false;
@@ -56,6 +57,7 @@ class cInnerNode : public cNode<T> {
         }
         return true;
     }
+    //Less strict setLow. Sets tuple only if it is lower than current tupleLow
     bool widenLow(int index, cTuple<T>* tuple) {
         if(index < 0 || index >= this->getCount())
             return false;
@@ -72,6 +74,7 @@ class cInnerNode : public cNode<T> {
         }
         return true;
     }
+    //Strict setHigh. Sets tupleHigh to tuple.
     bool setHigh(int index, cTuple<T>* tupleHigh) {
         if(index < 0 || index >= this->getCount())
             return false;
@@ -82,6 +85,7 @@ class cInnerNode : public cNode<T> {
         );
         return true;
     }
+    //Strict setLow. Sets tupleLow to tuple.
     bool setLow(int index, cTuple<T>* tupleLow) {
         if(index < 0 || index >= this->getCount())
             return false;
@@ -92,8 +96,8 @@ class cInnerNode : public cNode<T> {
         );
         return true;
     }
+    //Unconditionally adjusts range at index based on children on index
     bool adjustRange(int index) {
-        //Adjust range should check for first elements that are not equal to its parent and adjust range accordingly
         //TODO: implement for inner node type children
         if(index < 0 || index >= this->getCount())
             return false;
@@ -106,9 +110,14 @@ class cInnerNode : public cNode<T> {
         this->setHigh(index, tupleHigh);
         return true;
     }
-
+    bool addElement(cLeafNode<T>* child, int index = -1) {
+        cTuple<T> *tupleLow = new cTuple<T> ((T*)child->getElementPtr(0), this->metadata->n1);
+        cTuple<T> *tupleHigh = new cTuple<T> ((T*)child->getElementPtr(child->getCount()-1), this->metadata->n1);
+        return addElement(tupleLow, tupleHigh, child, index);
+    }
+    //Adds element specified by tuple range and child pointer to the node at index. 
+    //If index is not specified, adds element to the end of the node.
     bool addElement(cTuple<T>* tupleLow, cTuple<T>* tupleHigh, cNode<T>* child, int index = -1) {
-        // Implementation for addElement method, finds correct possition
         if(index < 0){
             index = this->getCount();
         }
@@ -141,77 +150,8 @@ class cInnerNode : public cNode<T> {
             &child, 
             sizeof(cNode<T>*)
         );
-        // TODO: check for overflow
         this->incrementCount();
-        if(this->getCount() >= this->metadata->maxInnerNodeElements)
-            printf("Overflow, InnerNode split should be there!\n");
         return true;
-    }
-    //TODO: implement insert for inner node type children
-    int insertTuple(cTuple<T>* tuple) override {
-        int count = this->getCount();
-        if(count >= this->metadata->maxInnerNodeElements)
-            return -1;
-        // Implementation for insertTuple method
-        // if node is empty, perform node Initialisation
-        if(count == 0) {
-            cLeafNode<T>* leafNode = new cLeafNode<T>(this->metadata);
-            leafNode->parent = this;
-            leafNode->insertTuple(tuple);
-            int retVal = addElement(tuple, tuple, leafNode);
-            return retVal;
-        }
-
-        //If there are elements present, find the right place to insert
-        //Because we are working with tuples, we cannot use distance, instead we will use tuple LT comparison and first smaller element will be the right place to insert and increase range of
-        else{
-            cLeafNode<T>* child = nullptr;
-            int childIndex = -1;
-            for(int i = 0; i < count; i++) {
-                //TODO: ensure we are not wasting memory here
-                char * tupleLow = this->getTupleLowPtr(i);
-                char * tupleHigh = this->getTupleHighPtr(i);
-                cTuple<T> *tupleLowObj = new cTuple<T> ((T*)tupleLow, this->metadata->n1);
-                cTuple<T> *tupleHighObj = new cTuple<T> ((T*)tupleHigh, this->metadata->n1);
-
-                if(tuple->isLT(*tupleLowObj)) {
-                    if(i == 0){
-                        childIndex = 0;
-                        this->widenLow(childIndex, tuple);
-                    }
-                    else{
-                        childIndex = i-1;
-                        this->widenHigh(childIndex, tuple);
-                    }
-                    child = dynamic_cast<cLeafNode<T>*>(this->getChild(childIndex));
-                    break;
-                }
-                else if(tuple->isTupleBetween(*tupleLowObj, *tupleHighObj)) {
-                    childIndex = i;
-                    child = dynamic_cast<cLeafNode<T>*>(this->getChild(childIndex));
-                    break;
-                }
-            }   
-            if(child == nullptr) {
-                childIndex = count - 1;
-                this->widenHigh(childIndex, tuple);
-                child = dynamic_cast<cLeafNode<T>*>(this->getChild(childIndex));
-            }
-            child->insertTuple(tuple);
-            int countAftIns = child->getCount();
-            //Check for overflow, if overflow, split child node and insert second node into parent
-            if (countAftIns >= this->metadata->maxLeafNodeElements) {
-                //TODO: make a adjustRange method, which will adjust range of parent node based on its children
-                //split child node
-                cLeafNode<T>* second = child->split();
-                //insert second node into parent
-                cTuple<T> *tupleLow = new cTuple<T> ((T*)second->getElementPtr(0), this->metadata->n1);
-                cTuple<T> *tupleHigh = new cTuple<T> ((T*)second->getElementPtr(second->getCount()-1), this->metadata->n1);
-                this->addElement(tupleLow, tupleHigh, second, childIndex + 1);
-                this->adjustRange(childIndex);
-            }
-            return childIndex;
-        }
     }
     void printNodes(bool printSubtree = false, int level = 0) override{
         //print tuples in leaf node, format: [tuple1, tuple2, ...], where tuple is [attr1, attr2, ...]
