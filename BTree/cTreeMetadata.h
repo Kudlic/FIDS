@@ -16,7 +16,8 @@ public:
         innerNodeCount(0),
         nDataIsLeafNodeBShift(0),
         nDataCountBShift(4),
-        nDataStartBShift(8) {
+        nDataNodeLinkBShift(8) {
+            nDataStartBShift = nDataNodeLinkBShift+sizeof(char*);
             attrSize = sizeof(TT);
             nDataSizeLeaf = (nDataStartBShift) + (attrSize * n * maxLeafNodeElements);
             nDataSizeInner = (nDataStartBShift) + ((sizeof(char*) + (n1 * attrSize * 2)) * maxInnerNodeElements);
@@ -40,13 +41,11 @@ public:
         std::cout << "tupleCount: " << tupleCount << std::endl;
         std::cout << "leafNodeCount: " << leafNodeCount << std::endl;
         std::cout << "innerNodeCount: " << innerNodeCount << std::endl;
-        std::cout << "nDataIsLeafNodeBShift: " << nDataIsLeafNodeBShift << std::endl;
-        std::cout << "nDataCountBShift: " << nDataCountBShift << std::endl;
-        std::cout << "nDataStartBShift: " << nDataStartBShift << std::endl;
         std::cout << "nDataSizeLeaf: " << nDataSizeLeaf << std::endl;
         std::cout << "nDataSizeInner: " << nDataSizeInner << std::endl;
-        std::cout << "nDataElementLeafSize: " << nDataElementLeafSize << std::endl;
-        std::cout << "nDataElementInnerSize: " << nDataElementInnerSize << std::endl;
+    }
+    double getBpTreeAllocatedBytes(){
+        return ((nDataSizeLeaf * leafNodeCount)+(nDataSizeInner * innerNodeCount));
     }
 
 private:
@@ -72,6 +71,7 @@ private:
     //nData Byte Shifts
     int nDataCountBShift; // Count of tuples of nData in nData
     int nDataIsLeafNodeBShift; // IsLeafNode flag in nData
+    int nDataNodeLinkBShift; // Link to leaf node in nData
     int nDataStartBShift; // Start of nData in nData
     int nDataInnerNodeElementRangeLowBShift; // Start of low range in inner node nData element
     int nDataInnerNodeElementRangeHighBShift; // Start of high range in inner node nData element

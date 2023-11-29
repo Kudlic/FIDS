@@ -17,6 +17,7 @@ class cLeafNode : public cNode<T> {
         this->nData = new char[metadata->nDataSizeLeaf];
         this->setCount(0);
         this->setLeafNode(true);
+        this->setNodeLink(nullptr);
         metadata->leafNodeCount++;
     }
     ~cLeafNode() {
@@ -24,10 +25,18 @@ class cLeafNode : public cNode<T> {
         delete[] this->nData;
     }
     char* getElementPtr(int index) {
-        // Implementation for getElementPtr method
         return this->nData + this->metadata->nDataStartBShift + (index * this->metadata->nDataElementLeafSize);
     }
-    void printNodes(bool printSubtree = false, int level = 0) override{
+    cLeafNode<T>* getNodeLink() {
+        cLeafNode<T>* child = nullptr;
+        memcpy(&child, this->nData + this->metadata->nDataNodeLinkBShift, sizeof(char*));  
+        return child;
+    }
+    char* setNodeLink(cLeafNode<T>* nodeLink) {
+        std::memcpy(this->nData + this->metadata->nDataNodeLinkBShift, &nodeLink, sizeof(char*));
+        return (char*)nodeLink;
+    }
+    void printNodes(bool printSubtree = false, int level = 0, bool includeLinks = false) override{
         //print tuples in leaf node, format: [tuple1, tuple2, ...], where tuple is [attr1, attr2, ...]
         int count = this->getCount();
         if(printSubtree){
@@ -50,7 +59,21 @@ class cLeafNode : public cNode<T> {
                 printf(", ");
             }
         }
-        printf("]\n");
+        printf("]");
+        //print node link
+        if(includeLinks){
+            printf(" -> ");
+            if(this->getNodeLink() != nullptr){
+                this->getNodeLink()->printNodes(false, 0);
+                printf("\n");
+            }
+            else{
+                printf("nullptr\n");
+            }
+        }
+        else{
+            printf("\n");
+        }
     }
     //insert tuple into leaf node, keeps node ordered
     int insertTuple(cTuple<T>* tuple){
@@ -122,6 +145,9 @@ class cLeafNode : public cNode<T> {
             parentNode->adjustRange(splitNodeIndex);
         }
         parentNode->addElement(second, splitNodeIndex+1);
+        
+        second->setNodeLink(this->getNodeLink());
+        this->setNodeLink(second);
         return parentNode;
     }
 };

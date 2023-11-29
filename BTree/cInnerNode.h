@@ -19,8 +19,13 @@ class cInnerNode : public cNode<T> {
         this->setLeafNode(false);
         this->metadata->innerNodeCount++;
     }
-    ~cInnerNode() {
+    ~cInnerNode() override{
+        for(int i=0; i<this->getCount(); i++){
+            cNode<T>* child = this->getChild(i);
+            delete child;
+        }
         this->metadata->innerNodeCount--;
+
         delete[] this->nData;
     }
     cNode<T>* getChild(int index) {
@@ -208,7 +213,7 @@ class cInnerNode : public cNode<T> {
         parentNode->addElement(second, splitNodeIndex+1);
         return parentNode;
     }
-    void printNodes(bool printSubtree = false, int level = 0) override{
+    void printNodes(bool printSubtree = false, int level = 0, bool includeLinks = false) override{
         //print tuples in leaf node, format: [tuple1, tuple2, ...], where tuple is [attr1, attr2, ...]
         int count = this->getCount();
         if(printSubtree){
@@ -245,7 +250,7 @@ class cInnerNode : public cNode<T> {
             for(int i = 0; i < count; i++){
                 cNode<T>* child = this->getChild(i);
                 if(child != nullptr)
-                    child->printNodes(printSubtree, level + 1);
+                    child->printNodes(printSubtree, level + 1, includeLinks);
             }
         }
     }

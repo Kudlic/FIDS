@@ -9,6 +9,8 @@ public:
     cNode(cTreeMetadata<T> *metadata) : 
         metadata(metadata) {
         }
+    virtual ~cNode(){
+    }
     bool isLeafNode() {
         // Implementation for isLeafNode method
         int extractedInt = 0;
@@ -40,7 +42,7 @@ public:
         return count;
     }
     virtual cNode* split(int splitNodeIndex, cNode* parent) {return nullptr;}
-    virtual void printNodes(bool printSubtree = false, int level = 0) {}
+    virtual void printNodes(bool printSubtree = false, int level = 0, bool includeLinks = false) {}
 
 protected:
     char* nData; // Data of the node

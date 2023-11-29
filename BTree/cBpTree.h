@@ -55,8 +55,11 @@ public:
 
     ~cBpTree() {
         delete this->root;
+        delete this->metadata;
     }
-
+    double getBpTreeBytes(){
+        return this->metadata->getBpTreeAllocatedBytes();
+    }
     bool insert(cTuple<T>& tuple) {
         cStack<cNode<T>*> stack = cStack<cNode<T>*>(this->metadata->order);
         stack.push(this->root, 0);
@@ -177,13 +180,104 @@ public:
                 }
             }
         }
+        return true;
     }
 
-    void search(cTuple<T>& tuple) {
-        // Implementation for search method
+    bool pointSearch(cTuple<T>& tuple) {
+        cNode<T>* current = this->root;
+        int count = -1;
+        int foundTuples = 0;
+        while (current != nullptr) {
+            if(!current->isLeafNode()){
+                count = current->getCount();
+                cInnerNode<T>* innerNode = dynamic_cast<cInnerNode<T>*>(current);
+                int i = 0;
+                for(; i < count; i++) {
+                    cTuple<T> *tupLow = new cTuple<T> ((T*)innerNode->getTupleLowPtr(i), innerNode->metadata->n1);
+                    if(tuple.isGEQT(*tupLow)){
+                        current = innerNode->getChild(i);
+                        break;
+                    }
+                }
+                if(i == count){
+                    return foundTuples;
+                }
+                continue;
+            }
+            break;
+            
+        }
+        cLeafNode<T>* leafNode = dynamic_cast<cLeafNode<T>*>(current);
+        count = leafNode->getCount();
+        for(int i = 0; i < count; i++) {
+            if(tuple.isEQ(*(new cTuple<T> ((T*)leafNode->getElementPtr(i), leafNode->metadata->n1)))){
+                return true;
+            }
+        }
+        return false;
+        
     }
-    void search(cTuple<T>& tuple, cTuple<T>& tuple) {
-        // Implementation for search method
+    int searchLinkedList(cTuple<T>& tupleLow, cTuple<T>& tupleHigh) {
+        cNode<T>* current = this->root;
+        int count = -1;
+        int foundTuples = 0;
+        while (current != nullptr) {
+            if(!current->isLeafNode()){
+                count = current->getCount();
+                cInnerNode<T>* innerNode = dynamic_cast<cInnerNode<T>*>(current);
+                int i = 0;
+                for(; i < count; i++) {
+                    cTuple<T> *tupLowTree = new cTuple<T> ((T*)innerNode->getTupleLowPtr(i), innerNode->metadata->n1);
+                    cTuple<T> *tupHighTree = new cTuple<T> ((T*)innerNode->getTupleHighPtr(i), innerNode->metadata->n1);
+                    
+                    printf("Tuple low tree: ");
+                    tupLowTree->printTuple();
+                    printf("Tuple high tree: ");
+                    tupHighTree->printTuple();
+                    printf("Tuple low: ");
+                    tupleLow.printTuple();
+                    printf("Tuple high: ");
+                    tupleHigh.printTuple();
+                    printf("\n");
+                    
+                    if(tupleLow.isTupleBetween(*tupLowTree, *tupHighTree)){
+                        current = innerNode->getChild(i);
+                        break;
+                    }
+                }
+                if(i == count){
+                    return foundTuples;
+                }
+            }
+            else{
+                break;
+            }
+        }
+        cLeafNode<T>* leafNode = dynamic_cast<cLeafNode<T>*>(current);
+        bool lastRes = false;
+        while (leafNode != nullptr) {
+            count = leafNode->getCount();
+            //cTuple<T> *tupLow = new cTuple<T> ((T*)leafNode->getElementPtr(0), leafNode->metadata->n1);
+            //cTuple<T> *tupHigh = new cTuple<T> ((T*)leafNode->getElementPtr(leafNode->getCount()), leafNode->metadata->n1);
+            leafNode->printNodes(false, 0);
+            for(int i = 0; i < count; i++) {
+                if(tupleHigh.isGEQT(*(new cTuple<T> ((T*)leafNode->getElementPtr(i), leafNode->metadata->n1)))){
+                    foundTuples++;
+                    lastRes = true;
+                }
+                else if (lastRes == true){
+                    return foundTuples;
+                }
+            }
+            if(lastRes){
+                leafNode = leafNode->getNodeLink();
+                if(leafNode == nullptr){
+                    return foundTuples;
+                }
+                continue;
+            }
+            return foundTuples;
+        }
     }
     void printBpTree(){
         this->root->printNodes(true, 0);
