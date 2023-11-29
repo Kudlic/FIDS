@@ -49,15 +49,15 @@ int main() {
 
     // Insert some data
     srand(170400);
-    for(int i = 0; i < 20; i++) {
-        cTuple tuple(new int[4]{rand()%7, rand()%13, i+17, i+31}, 4);
+    for(int i = 0; i < 500; i++) {
+        cTuple tuple(new int[4]{rand()%25, rand()%25, i, i*7}, 4);
         //tuple.printTuple();
         if(!tree.insert(tuple)){
             printf("Insertion failed!\n");
             break;
         }
-        tree.printBpTree();
     }
+    tree.printBpTree();
     tree.printMetadata();
     //cTuple searchTup = cTuple(new int[4]{1, 0, 18, 32}, 4);
     //tree.search(searchTup);

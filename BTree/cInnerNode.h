@@ -101,14 +101,33 @@ class cInnerNode : public cNode<T> {
         //TODO: implement for inner node type children
         if(index < 0 || index >= this->getCount())
             return false;
-        cLeafNode<T>* child = dynamic_cast<cLeafNode<T>*>( this->getChild(index));
-        if(child == nullptr)
-            return false;
-        cTuple<T> *tupleLow = new cTuple<T> ((T*)child->getElementPtr(0), this->metadata->n1);
-        cTuple<T> *tupleHigh = new cTuple<T> ((T*)child->getElementPtr(child->getCount()-1), this->metadata->n1);
-        this->setLow(index, tupleLow);
-        this->setHigh(index, tupleHigh);
-        return true;
+        if(this->getChild(index)->isLeafNode()){
+            cLeafNode<T>* child = dynamic_cast<cLeafNode<T>*>( this->getChild(index));
+            if(child == nullptr)
+                return false;
+            cTuple<T> *tupleLow = new cTuple<T> ((T*)child->getElementPtr(0), this->metadata->n1);
+            cTuple<T> *tupleHigh = new cTuple<T> ((T*)child->getElementPtr(child->getCount()-1), this->metadata->n1);
+            this->setLow(index, tupleLow);
+            this->setHigh(index, tupleHigh);
+            return true;
+        }
+        else{
+            cInnerNode<T>* child = dynamic_cast<cInnerNode<T>*>( this->getChild(index));
+            if(child == nullptr)
+                return false;
+            cTuple<T> *tupleLow = new cTuple<T> ((T*)child->getTupleLowPtr(0), this->metadata->n1);
+            cTuple<T> *tupleHigh = new cTuple<T> ((T*)child->getTupleHighPtr(child->getCount()-1), this->metadata->n1);
+            this->setLow(index, tupleLow);
+            this->setHigh(index, tupleHigh);
+            return true;
+        }
+        return false;
+    }
+
+    bool addElement(cInnerNode<T>* child, int index = -1) {
+        cTuple<T> *tupleLow = new cTuple<T> ((T*)child->getTupleLowPtr(0), this->metadata->n1);
+        cTuple<T> *tupleHigh = new cTuple<T> ((T*)child->getTupleHighPtr(child->getCount()-1), this->metadata->n1);
+        return addElement(tupleLow, tupleHigh, child, index);
     }
     bool addElement(cLeafNode<T>* child, int index = -1) {
         cTuple<T> *tupleLow = new cTuple<T> ((T*)child->getElementPtr(0), this->metadata->n1);
@@ -153,12 +172,48 @@ class cInnerNode : public cNode<T> {
         this->incrementCount();
         return true;
     }
+    cNode<T>* split(int splitNodeIndex, cNode<T>* parent) override {
+        // Splits the InnerNode into two InnerNodes,
+        // If there is no parent node, creates a new parent node and initializes first range and sets split child pointer to it
+        // Sets parent of second node to parent of first node, inserts second node and its range into parent node
+        // Returns parent node
+        int count = this->getCount();
+        if(count < this->metadata->maxInnerNodeElements)
+            return nullptr;
+        cInnerNode<T>* second = new cInnerNode<T>(this->metadata);
+        //copy second half of elements to second node
+        memcpy(
+            second->nData + this->metadata->nDataStartBShift, 
+            this->nData + this->metadata->nDataStartBShift + (this->metadata->nDataElementInnerSize * this->metadata->halfInnerNode), 
+            this->metadata->nDataElementInnerSize * (this->metadata->maxInnerNodeElements - this->metadata->halfInnerNode)
+        );
+        int countSecond = this->metadata->maxInnerNodeElements - this->metadata->halfInnerNode;
+        //set count of second node
+        second->setCount(countSecond);
+        //set count of first node
+        this->setCount(this->metadata->halfInnerNode);
+
+        cInnerNode<T>* parentNode = dynamic_cast<cInnerNode<T>*>(parent);
+        //take care of parent node, init if not initialized and set parent of second node, This can happen only once
+        if(parentNode == nullptr){
+            //create new parent node
+            parentNode = new cInnerNode<T>(this->metadata);
+            this->metadata->order++;
+            //set first element of parent node, also describable as first InnerNode element and parent of split leafNode
+            parentNode->addElement(this);
+        }
+        else{
+            parentNode->adjustRange(splitNodeIndex);
+        }
+        parentNode->addElement(second, splitNodeIndex+1);
+        return parentNode;
+    }
     void printNodes(bool printSubtree = false, int level = 0) override{
         //print tuples in leaf node, format: [tuple1, tuple2, ...], where tuple is [attr1, attr2, ...]
         int count = this->getCount();
         if(printSubtree){
             for(int i = 0; i < level; i++){
-                printf("  ");
+                printf("_  ");
             }
             printf("InnerNode: ");
         }

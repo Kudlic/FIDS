@@ -32,7 +32,7 @@ class cLeafNode : public cNode<T> {
         int count = this->getCount();
         if(printSubtree){
             for(int i = 0; i < level; i++){
-                printf("  ");
+                printf("_  ");
             }
             printf("LeafNode: ");
         }
@@ -88,7 +88,7 @@ class cLeafNode : public cNode<T> {
         this->metadata->tupleCount++;
         return i;
     }
-    cNode<T>* split(int splitNodeIndex) override {
+    cNode<T>* split(int splitNodeIndex, cNode<T>* parent) override {
         // Splits the LeafNode into two LeafNodes,
         // If there is no parent node, creates a new parent node and initializes first range and sets split child pointer to it
         // Sets parent of second node to parent of first node, inserts second node and its range into parent node
@@ -109,20 +109,19 @@ class cLeafNode : public cNode<T> {
         //set count of first node
         this->setCount(this->metadata->halfLeafNode);
 
+        cInnerNode<T>* parentNode = dynamic_cast<cInnerNode<T>*>(parent);
         //take care of parent node, init if not initialized and set parent of second node, This can happen only once
-        if(this->parent == nullptr){
+        if(parentNode == nullptr){
             //create new parent node
-            cInnerNode<T>* parent = new cInnerNode<T>(this->metadata);
-            this->parent = parent;
+            parentNode = new cInnerNode<T>(this->metadata);
             this->metadata->order++;
             //set first element of parent node, also describable as first InnerNode element and parent of split leafNode
-            parent->addElement(this);
+            parentNode->addElement(this);
         }
         else{
-            dynamic_cast<cInnerNode<T>*>(this->parent)->adjustRange(splitNodeIndex);
+            parentNode->adjustRange(splitNodeIndex);
         }
-        second->parent = this->parent;
-        dynamic_cast<cInnerNode<T>*>(second->parent)->addElement(second, splitNodeIndex+1);
-        return second->parent;
+        parentNode->addElement(second, splitNodeIndex+1);
+        return parentNode;
     }
 };

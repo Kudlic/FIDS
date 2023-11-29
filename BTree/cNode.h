@@ -39,13 +39,12 @@ public:
         std::memcpy(nData + metadata->nDataCountBShift, &count, sizeof(int));
         return count;
     }
-    virtual cNode* split(int splitNodeIndex) {return nullptr;}
+    virtual cNode* split(int splitNodeIndex, cNode* parent) {return nullptr;}
     virtual void printNodes(bool printSubtree = false, int level = 0) {}
 
 protected:
     char* nData; // Data of the node
     cTreeMetadata<T> * metadata; // Metadata of the tree
-    cNode<T> * parent;
 
     template<typename TT> friend class cBpTree;
     template<typename TT> friend class cLeafNode;

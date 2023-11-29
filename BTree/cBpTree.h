@@ -80,40 +80,77 @@ public:
             }
             else if(!isLeaf){
                 cInnerNode<T>* innerNode = dynamic_cast<cInnerNode<T>*>(current);
-                //find child node to insert tuple
-                cLeafNode<T>* child = nullptr;
-                int childIndex = -1;
-                for(int i = 0; i < count; i++) {
-                    //TODO: ensure we are not wasting memory here
-                    cTuple<T> *tupleLowObj = new cTuple<T> ((T*)innerNode->getTupleLowPtr(i), innerNode->metadata->n1);
-                    cTuple<T> *tupleHighObj = new cTuple<T> ((T*)innerNode->getTupleHighPtr(i), innerNode->metadata->n1);
+                if(innerNode->getChild(0)->isLeafNode()){
+                    //find child node to insert tuple
+                    cLeafNode<T>* child = nullptr;
+                    int childIndex = -1;
+                    for(int i = 0; i < count; i++) {
+                        //TODO: ensure we are not wasting memory here
+                        cTuple<T> *tupleLowObj = new cTuple<T> ((T*)innerNode->getTupleLowPtr(i), innerNode->metadata->n1);
+                        cTuple<T> *tupleHighObj = new cTuple<T> ((T*)innerNode->getTupleHighPtr(i), innerNode->metadata->n1);
 
-                    if(tuple.isLT(*tupleLowObj)) {
-                        if(i == 0){
-                            childIndex = 0;
-                            innerNode->widenLow(childIndex, &tuple);
+                        if(tuple.isLT(*tupleLowObj)) {
+                            if(i == 0){
+                                childIndex = 0;
+                                innerNode->widenLow(childIndex, &tuple);
+                            }
+                            else{
+                                childIndex = i-1;
+                                innerNode->widenHigh(childIndex, &tuple);
+                            }
+                            child = dynamic_cast<cLeafNode<T>*>(innerNode->getChild(childIndex));
+                            break;
                         }
-                        else{
-                            childIndex = i-1;
-                            innerNode->widenHigh(childIndex, &tuple);
+                        else if(tuple.isTupleBetween(*tupleLowObj, *tupleHighObj)) {
+                            childIndex = i;
+                            child = dynamic_cast<cLeafNode<T>*>(innerNode->getChild(childIndex));
+                            break;
                         }
+                    }   
+                    //If child node was not found, insert tuple into last child, as all ranges must have been too low
+                    if(child == nullptr) {
+                        childIndex = count - 1;
+                        innerNode->widenHigh(childIndex, &tuple);
                         child = dynamic_cast<cLeafNode<T>*>(innerNode->getChild(childIndex));
-                        break;
                     }
-                    else if(tuple.isTupleBetween(*tupleLowObj, *tupleHighObj)) {
-                        childIndex = i;
-                        child = dynamic_cast<cLeafNode<T>*>(innerNode->getChild(childIndex));
-                        break;
-                    }
-                }   
-                //If child node was not found, insert tuple into last child, as all ranges must have been too low
-                if(child == nullptr) {
-                    childIndex = count - 1;
-                    innerNode->widenHigh(childIndex, &tuple);
-                    child = dynamic_cast<cLeafNode<T>*>(innerNode->getChild(childIndex));
+                    stack.push(child, childIndex);
+                    continue;
                 }
-                stack.push(child, childIndex);
-                continue;
+                else{
+                    //find child node to insert tuple
+                    cInnerNode<T>* child = nullptr;
+                    int childIndex = -1;
+                    for(int i = 0; i < count; i++) {
+                        cTuple<T> *tupleLowObj = new cTuple<T> ((T*)innerNode->getTupleLowPtr(i), innerNode->metadata->n1);
+                        cTuple<T> *tupleHighObj = new cTuple<T> ((T*)innerNode->getTupleHighPtr(i), innerNode->metadata->n1);
+
+                        if(tuple.isLT(*tupleLowObj)) {
+                            if(i == 0){
+                                childIndex = 0;
+                                innerNode->widenLow(childIndex, &tuple);
+                            }
+                            else{
+                                childIndex = i-1;
+                                innerNode->widenHigh(childIndex, &tuple);
+                            }
+                            child = dynamic_cast<cInnerNode<T>*>(innerNode->getChild(childIndex));
+                            break;
+                        }
+                        else if(tuple.isTupleBetween(*tupleLowObj, *tupleHighObj)) {
+                            childIndex = i;
+                            child = dynamic_cast<cInnerNode<T>*>(innerNode->getChild(childIndex));
+                            break;
+                        }
+                    }
+                    //If child node was not found, insert tuple into last child, as all ranges must have been too low
+                    if(child == nullptr) {
+                        childIndex = count - 1;
+                        innerNode->widenHigh(childIndex, &tuple);
+                        child = dynamic_cast<cInnerNode<T>*>(innerNode->getChild(childIndex));
+                    }
+                    stack.push(child, childIndex);
+                    continue;
+                }
             }
         }
         while(!stack.isEmpty() && needToSplit){
@@ -124,33 +161,28 @@ public:
             if(isLeaf){
                 cLeafNode<T>* leafNode = dynamic_cast<cLeafNode<T>*>(current);
                 if(count < leafNode->metadata->maxLeafNodeElements) {return true;}
-                cNode<T>* splitRet= leafNode->split(position);
+                cNode<T>* splitRet= leafNode->split(position, stack.isEmpty() ? nullptr : stack.peek());
                 if(stack.isEmpty()){
                     this->root = splitRet;
                     return true;
                 }
-                /*
-                else{
-                    cInnerNode<T>* parent = dynamic_cast<cInnerNode<T>*>(stack.peek());
-                    if(parent->getCount() >= parent->metadata->maxInnerNodeElements){
-                        needToSplit = false;
-                        break;
-                    }
-                    
-                }
-                */
             }
             if(!isLeaf){
                 cInnerNode<T>* innerNode = dynamic_cast<cInnerNode<T>*>(current);
                 if (count < innerNode->metadata->maxInnerNodeElements) {return true;}
-
-                printf("Inner node split\n");
-                return false;
+                cNode<T>* splitRet= innerNode->split(position, stack.isEmpty() ? nullptr : stack.peek());
+                if(stack.isEmpty()){
+                    this->root = splitRet;
+                    return true;
+                }
             }
         }
     }
 
     void search(cTuple<T>& tuple) {
+        // Implementation for search method
+    }
+    void search(cTuple<T>& tuple, cTuple<T>& tuple) {
         // Implementation for search method
     }
     void printBpTree(){
