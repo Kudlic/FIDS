@@ -86,8 +86,8 @@ class cLeafNode : public cNode<T> {
         int i = 0;
         bool found = false;
         for(; i < count; i++) {
-            cTuple<T> * tempTuple = new cTuple<T>((T*)this->getElementPtr(i), this->metadata->n1);
-            if(tuple->isLT(*tempTuple)){
+            cTuple<T> tempTuple = cTuple<T>((T*)this->getElementPtr(i), this->metadata->n1, true);
+            if(tuple->isLT(tempTuple)){
                 //i--;//go back, because we want to insert before this element
                 found = true;
                 break;

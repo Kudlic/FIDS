@@ -4,12 +4,18 @@
 template<typename T>
 class cTuple {
 public:
-    cTuple(T* attributes, int n) : attributes(attributes), n(n) {}
+    cTuple(T* attributes, int n, bool isWrapper = 0) : attributes(attributes), n(n), isWrapper(isWrapper) {}
     ~cTuple() {
-        delete[] attributes;
+        if(!isWrapper){
+            delete[] attributes;
+        }
+        else{
+            attributes = nullptr;
+        }
     }
     T* attributes;
     int n; // Number of attributes
+    bool isWrapper;
 
     void printTuple() {
         printf("Tuple: ");

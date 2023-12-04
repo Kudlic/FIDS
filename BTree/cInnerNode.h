@@ -50,8 +50,8 @@ class cInnerNode : public cNode<T> {
         if(index < 0 || index >= this->getCount())
             return false;
         //If tupleHigh is lower than tuple, widen it
-        cTuple<T> *tupleHigh = new cTuple<T> ((T*)this->getTupleHighPtr(index), this->metadata->n1);
-        if(tuple->isGT(*tupleHigh)) {
+        cTuple<T> tupleHigh = cTuple<T> ((T*)this->getTupleHighPtr(index), this->metadata->n1, true);
+        if(tuple->isGT(tupleHigh)) {
             {
                 memcpy(
                     this->getTupleHighPtr(index), 
@@ -67,8 +67,8 @@ class cInnerNode : public cNode<T> {
         if(index < 0 || index >= this->getCount())
             return false;
         //If tupleLow is lower than tuple, widen it
-        cTuple<T> *tupleLow = new cTuple<T> ((T*)this->getTupleLowPtr(index), this->metadata->n1);
-        if(tuple->isLT(*tupleLow)) {
+        cTuple<T> tupleLow = cTuple<T> ((T*)this->getTupleLowPtr(index), this->metadata->n1, true);
+        if(tuple->isLT(tupleLow)) {
             {
                 memcpy(
                     this->getTupleLowPtr(index), 
@@ -110,34 +110,34 @@ class cInnerNode : public cNode<T> {
             cLeafNode<T>* child = dynamic_cast<cLeafNode<T>*>( this->getChild(index));
             if(child == nullptr)
                 return false;
-            cTuple<T> *tupleLow = new cTuple<T> ((T*)child->getElementPtr(0), this->metadata->n1);
-            cTuple<T> *tupleHigh = new cTuple<T> ((T*)child->getElementPtr(child->getCount()-1), this->metadata->n1);
-            this->setLow(index, tupleLow);
-            this->setHigh(index, tupleHigh);
+            cTuple<T> tupleLow = cTuple<T> ((T*)child->getElementPtr(0), this->metadata->n1, true);
+            cTuple<T> tupleHigh = cTuple<T> ((T*)child->getElementPtr(child->getCount()-1), this->metadata->n1, true);
+            this->setLow(index, &tupleLow);
+            this->setHigh(index, &tupleHigh);
             return true;
         }
         else{
             cInnerNode<T>* child = dynamic_cast<cInnerNode<T>*>( this->getChild(index));
             if(child == nullptr)
                 return false;
-            cTuple<T> *tupleLow = new cTuple<T> ((T*)child->getTupleLowPtr(0), this->metadata->n1);
-            cTuple<T> *tupleHigh = new cTuple<T> ((T*)child->getTupleHighPtr(child->getCount()-1), this->metadata->n1);
-            this->setLow(index, tupleLow);
-            this->setHigh(index, tupleHigh);
+            cTuple<T> tupleLow = cTuple<T> ((T*)child->getTupleLowPtr(0), this->metadata->n1, true);
+            cTuple<T> tupleHigh = cTuple<T> ((T*)child->getTupleHighPtr(child->getCount()-1), this->metadata->n1, true);
+            this->setLow(index, &tupleLow);
+            this->setHigh(index, &tupleHigh);
             return true;
         }
         return false;
     }
 
     bool addElement(cInnerNode<T>* child, int index = -1) {
-        cTuple<T> *tupleLow = new cTuple<T> ((T*)child->getTupleLowPtr(0), this->metadata->n1);
-        cTuple<T> *tupleHigh = new cTuple<T> ((T*)child->getTupleHighPtr(child->getCount()-1), this->metadata->n1);
-        return addElement(tupleLow, tupleHigh, child, index);
+        cTuple<T> tupleLow = cTuple<T> ((T*)child->getTupleLowPtr(0), this->metadata->n1, true);
+        cTuple<T> tupleHigh = cTuple<T> ((T*)child->getTupleHighPtr(child->getCount()-1), this->metadata->n1, true);
+        return addElement(&tupleLow, &tupleHigh, child, index);
     }
     bool addElement(cLeafNode<T>* child, int index = -1) {
-        cTuple<T> *tupleLow = new cTuple<T> ((T*)child->getElementPtr(0), this->metadata->n1);
-        cTuple<T> *tupleHigh = new cTuple<T> ((T*)child->getElementPtr(child->getCount()-1), this->metadata->n1);
-        return addElement(tupleLow, tupleHigh, child, index);
+        cTuple<T> tupleLow = cTuple<T> ((T*)child->getElementPtr(0), this->metadata->n1, true);
+        cTuple<T> tupleHigh = cTuple<T> ((T*)child->getElementPtr(child->getCount()-1), this->metadata->n1, true);
+        return addElement(&tupleLow, &tupleHigh, child, index);
     }
     //Adds element specified by tuple range and child pointer to the node at index. 
     //If index is not specified, adds element to the end of the node.
