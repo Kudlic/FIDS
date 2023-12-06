@@ -37,6 +37,7 @@ Only arrays should be used.
 //TODO list:
 //  - implement delete
 //  - implement test, that saves all inserted tuples into array and then searches for them brute force
+
 template<typename T>
 class cBpTree {
 private:
@@ -214,7 +215,7 @@ public:
         cLeafNode<T>* leafNode = dynamic_cast<cLeafNode<T>*>(current);
         int foundCount = 0;
         bool readyToStop = false;
-        while(leafNode != nullptr && !readyToStop){
+        while(leafNode != nullptr){
             count = leafNode->getCount();
             for(int i = 0; i < count; i++) {
                 cTuple<T> tempTup = cTuple<T>((T*)leafNode->getElementPtr(i), leafNode->metadata->n1, true);
@@ -299,6 +300,7 @@ public:
         cNode<T>* current = this->root;
 
         int order = this->metadata->order;
+        int subtreesRangeOrder = this->metadata->maxInnerNodeElements-1;
         //find first place where range splits into different nodes
         while(current != nullptr){
             bool isLeaf = current->isLeafNode();
@@ -343,6 +345,7 @@ public:
                    // tupleHigh.printTuple();
                    // first->printNodes(true, 0, true);
                    // last->printNodes(true, 0, true);
+                    subtreesRangeOrder = j-i+1;
                     current = nullptr;
                 }
             }
@@ -439,7 +442,7 @@ public:
             int startPos = (resultCount * this->metadata->nDataElementLeafSize);
             int leafPos = currentLeaf->metadata->nDataStartBShift + (currentLeaf->metadata->nDataElementLeafSize * startTupleIx);
             memcpy(
-                resultData + (resultCount * this->metadata->n), 
+                (char*)resultData + (resultCount * this->metadata->nDataElementLeafSize ), 
                 currentLeaf->nData + currentLeaf->metadata->nDataStartBShift + (currentLeaf->metadata->nDataElementLeafSize * startTupleIx),
                 currentLeaf->metadata->nDataElementLeafSize * (count)
             );
@@ -466,6 +469,127 @@ public:
     }
     int searchPoint(cTuple<T>& tuple, T*& resultData, int& allocatedCount, bool printData = false){
         return searchRange(tuple, tuple, resultData, allocatedCount, printData);
+    }
+    int searchRangeNoAlloc(cTuple<T>& tupleLow, cTuple<T>& tupleHigh, T*& resultData, bool printData = false){
+        int resultCount = 0;
+        int indexedValues = this->metadata->n1;
+
+        if(tupleLow.isGT(tupleHigh)){
+            return -1;
+        }
+
+        cNode<T>* first = this->root;
+        cNode<T>* last = this->root;        
+
+        //Now find first leaf node, search until Leaf node is reached
+        while(first != nullptr){
+            bool isLeaf = first->isLeafNode();
+            int count = first->getCount();
+            if(isLeaf){
+                break;
+            }
+            else{
+                cInnerNode<T>* innerNode = dynamic_cast<cInnerNode<T>*>(first);
+                int i = 0;
+                for(; i < count; i++) {
+                    cTuple<T> tupHighTree = cTuple<T> ((T*)innerNode->getTupleHighPtr(i), innerNode->metadata->n1, true);
+                    //Easy to find last interval it fits in, just HigherEQthan, because lower bound can be lower than first element
+                    if(tupHighTree.isGEQT(tupleLow, indexedValues)){
+                        first = innerNode->getChild(i);
+                        break;
+                    }
+                }
+            }
+        }
+        //Now find last leaf node, search until Leaf node is reached
+        while(last != nullptr){
+            bool isLeaf = last->isLeafNode();
+            int count = last->getCount();
+            if(isLeaf){
+                break;
+            }
+            else{
+                cInnerNode<T>* innerNode = dynamic_cast<cInnerNode<T>*>(last);
+                int j = count - 1;
+                for(; j >= 0; j--) {
+                    cTuple<T> tupLowTree = cTuple<T> ((T*)innerNode->getTupleLowPtr(j), innerNode->metadata->n1, true);
+                    if(tupLowTree.isLEQT(tupleHigh, indexedValues)){
+                        last = innerNode->getChild(j);
+                        break;
+                    }
+                }
+
+            }
+        }
+        //Check if first and last didnt pass each other
+        if(dynamic_cast<cLeafNode<T>*>(last)->getNodeLink() == first){
+            return 0;
+        }
+        //Now we have first and last leaf node, and maximum size of result, we can start searching
+        cLeafNode<T>* currentLeaf = dynamic_cast<cLeafNode<T>*>(first);
+        bool endReached = false;
+        //we need to check which records to copy only in first and last leaf node, all between can be brute copied
+        //tupleLow.printTuple();
+        //tupleHigh.printTuple();
+        while(!endReached){
+            //index of first element to copy
+            int count = currentLeaf->getCount();
+            int startTupleIx = 0;
+            //index of last element to copy
+            int endTupleIx = count-1;
+            //currentLeaf->printNodes(false, 0, true);
+
+            if(currentLeaf == first){
+                //find first element to copy
+                int i = 0;
+                for(; i < count; i++) {
+                    cTuple<T> tupLowLeaf = cTuple<T> ((T*)currentLeaf->getElementPtr(i), currentLeaf->metadata->n1, true);
+                    if(tupLowLeaf.isGEQT(tupleLow, indexedValues)){
+                        startTupleIx = i;
+                        break;
+                    }
+                }
+            }
+            if(currentLeaf == last){
+                //find first element to not copy
+                int j = endTupleIx;
+                for(; j >= 0; j--) {
+                    cTuple<T> tupHighLeaf = cTuple<T> ((T*)currentLeaf->getElementPtr(j), currentLeaf->metadata->n1, true);
+                    if(tupHighLeaf.isLEQT(tupleHigh, indexedValues)){
+                        endTupleIx = j;
+                        break;
+                    }
+                }
+                endReached = true;
+            }
+
+            count = endTupleIx - startTupleIx + 1;
+            //copy all elements between startTupleIx and endTupleIx
+            int startPos = (resultCount * this->metadata->nDataElementLeafSize);
+            int leafPos = currentLeaf->metadata->nDataStartBShift + (currentLeaf->metadata->nDataElementLeafSize * startTupleIx);
+            memcpy(
+                (char*)resultData + (resultCount * this->metadata->nDataElementLeafSize ), 
+                currentLeaf->nData + currentLeaf->metadata->nDataStartBShift + (currentLeaf->metadata->nDataElementLeafSize * startTupleIx),
+                currentLeaf->metadata->nDataElementLeafSize * (count)
+            );
+            resultCount += count;
+            currentLeaf = currentLeaf->getNodeLink();
+            if(currentLeaf == nullptr){
+                //printf("End of linked list reached\n");
+                endReached = true;
+            }
+            
+        }
+        if(printData){
+            printf("Found %d tuples\n", resultCount);
+            for(int i = 0; i < resultCount; i++){
+                printf("[");
+                for(int j = 0; j < this->metadata->n; j++)
+                    printf("%d ", resultData[j+i*this->metadata->n]);
+                printf("],\n");
+            }
+        }
+        return resultCount;
     }
     void printBpTree(){
         this->root->printNodes(true, 0);

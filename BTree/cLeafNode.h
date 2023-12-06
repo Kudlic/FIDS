@@ -95,7 +95,7 @@ class cLeafNode : public cNode<T> {
         }
         //If position to insert was found, make space at index i
         if(found){
-            memcpy(
+            memmove(
                 this->nData + this->metadata->nDataStartBShift + (this->metadata->nDataElementLeafSize * (i + 1)), 
                 this->nData + this->metadata->nDataStartBShift + (this->metadata->nDataElementLeafSize * i), 
                 this->metadata->nDataElementLeafSize * (count - i)

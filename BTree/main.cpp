@@ -12,7 +12,246 @@ float BytesToMB(int bytes){
     return (float)bytes / 1024 / 1024;
 }
 
+void smallTestCase(){
+    //TESTCASE 3 
+
+    cBpTree<int> tree(6, 2, 4, 8, 8);
+
+    // Insert some data
+    srand(170400);
+    int records = 200;
+
+    cTuple maximum = cTuple(new int[6]{50, 5, -1, -1, -1, -1}, 6);
+
+    auto t1 = std::chrono::high_resolution_clock::now();
+    for(int i = 0; i < records; i++) {
+        cTuple tuple(new int[6]{rand()% maximum.attributes[0], rand()%maximum.attributes[1], i, i, i, i}, 6);
+        if(!tree.insert(tuple)){
+            printf("Insertion failed!\n");
+            break;
+        }
+    }
+    auto t2 = std::chrono::high_resolution_clock::now();
+    std::chrono::duration<double> time_span = std::chrono::duration_cast<std::chrono::duration<double>>(t2 - t1);
+    if(records <= 1000)tree.printBpTree();
+    tree.printMetadata();
+    printf("BpTree MB: %.3f\n",BytesToMB(tree.getBpTreeBytes()));
+
+    printf("Insert BpTable done. Time: %.2fs, Throughput: %.2f mil. op/s.\n\n", time_span.count(), GetThroughput(records, time_span.count()));
+    
+    
+    cTuple searchTupLow = cTuple(new int[6]{41, 0, -1, -1, -1, -1}, 6);
+    cTuple searchTupHigh = cTuple(new int[6]{41, 1, -1, -1, -1, -1}, 6);
+    int * result;
+    int all;
+    int tupleCount1 = tree.searchRange(searchTupLow, searchTupHigh, result, all, true);
+    if(all>=0) delete [] result;
+
+    int tupleCount2 = tree.searchRange(searchTupLow, searchTupLow, result, all, true);
+    if(all>=0) delete [] result;
+
+    int tupleCount3 = tree.pointSearch(searchTupLow);
+
+    printf("Query: {41, 0}-{41, 1}, found: %d\n", tupleCount1);
+    printf("Query: {41, 0}, found: %d\n", tupleCount2);
+    printf("Query: {41, 0}, found: %d\n", tupleCount3);
+
+
+    int queries = 1000;
+    int queriesFound = 0;
+    cTuple<int>** tuplesLow = new cTuple<int>*[queries];
+    cTuple<int>** tuplesHigh = new cTuple<int>*[queries];
+    for(int i = 0; i < queries; i++) {
+        tuplesLow[i] = new cTuple<int>(new int[6]{rand()% maximum.attributes[0], rand()%maximum.attributes[1], i, i, i, i}, 6);
+        tuplesHigh[i] = new cTuple<int>(new int[6]{rand()% maximum.attributes[0], rand()%maximum.attributes[1], i, i, i, i}, 6);
+        if(tuplesLow[i]->isGT(*tuplesHigh[i])){
+            cTuple<int>* temp = tuplesLow[i];
+            tuplesLow[i] = tuplesHigh[i];
+            tuplesHigh[i] = temp;
+        }
+    }
+    queriesFound = 0;
+    
+    t1 = std::chrono::high_resolution_clock::now();
+    for(int i = 0; i < queries; i++) {
+        int * result;
+        int all;
+        int tupleCount = tree.searchRange(*tuplesLow[i], *tuplesHigh[i], result, all);
+        if(tupleCount > 0) queriesFound++;
+        if(all >= 0) delete [] result;
+    }
+    t2 = std::chrono::high_resolution_clock::now();
+    time_span = std::chrono::duration_cast<std::chrono::duration<double>>(t2 - t1);
+    printf("Select range BpTable done. Time: %.2fs, Throughput: %.2f k. op/s.\n", time_span.count(), GetThroughput(queries, time_span.count(), 1000));
+    printf("Queries found: %d/%d\n\n", queriesFound, queries);
+    queriesFound = 0;
+    
+
+    t1 = std::chrono::high_resolution_clock::now();
+    for(int i = 0; i < queries; i++) {
+        int * result;
+        int all;
+        int tupleCount = tree.searchRange(*tuplesLow[i], *tuplesLow[i], result, all);
+        if(tupleCount > 0) queriesFound++;
+        if(all >= 0) delete [] result;
+    }
+    t2 = std::chrono::high_resolution_clock::now();
+    time_span = std::chrono::duration_cast<std::chrono::duration<double>>(t2 - t1);
+    printf("Select point BpTable done. Time: %.2fs, Throughput: %.2f k. op/s.\n", time_span.count(), GetThroughput(queries, time_span.count(), 1000));
+    printf("Queries found: %d/%d\n\n", queriesFound, queries);
+    queriesFound = 0;
+
+    t1 = std::chrono::high_resolution_clock::now();
+    for(int i = 0; i < queries; i++) {
+        int tupleCount = tree.pointSearch(*tuplesLow[i]);
+        if(tupleCount > 0) queriesFound++;
+    }
+    t2 = std::chrono::high_resolution_clock::now();
+    time_span = std::chrono::duration_cast<std::chrono::duration<double>>(t2 - t1);
+    printf("Select point BpTable done, no results. Time: %.2fs, Throughput: %.2f k. op/s.\n", time_span.count(), GetThroughput(queries, time_span.count(), 1000));
+    printf("Queries found: %d/%d\n\n", queriesFound, queries);
+    queriesFound = 0;
+
+    for(int i = 0; i < queries; i++) {
+        delete tuplesLow[i];
+        delete tuplesHigh[i];
+    }
+}
+void largeTestCase(){
+    //TESTCASE 3 
+    cBpTree<int> tree(6, 2, 4, 8, 32);
+
+    // Insert some data
+    srand(170400);
+    int records = 10000000;
+
+    cTuple maximum = cTuple(new int[6]{5000, 50, -1, -1, -1, -1}, 6);
+
+    cTuple<int>** tuplesInsert = new cTuple<int>*[records];
+    for(int i = 0; i < records; i++) {
+        tuplesInsert[i] = new cTuple<int>(new int[6]{rand()% maximum.attributes[0], rand()%maximum.attributes[1], i, i, i, i}, 6);
+    }
+
+    auto t1 = std::chrono::high_resolution_clock::now();
+    for(int i = 0; i < records; i++) {
+        if(!tree.insert(*tuplesInsert[i])){
+            printf("Insertion failed!\n");
+            break;
+        }
+    }
+    auto t2 = std::chrono::high_resolution_clock::now();
+    std::chrono::duration<double> time_span = std::chrono::duration_cast<std::chrono::duration<double>>(t2 - t1);
+    tree.printMetadata();
+    printf("BpTree MB: %.3f\n\n",BytesToMB(tree.getBpTreeBytes()));
+
+    printf("Insert BpTable done. Time: %.2fs, Throughput: %.2f mil. op/s.\n\n", time_span.count(), GetThroughput(records, time_span.count()));
+    
+    
+    cTuple searchTupLow = cTuple(new int[6]{41, 0, -1, -1, -1, -1}, 6);
+    int * result = new int[records * 6];
+    int tupleCount1 = tree.searchRangeNoAlloc(searchTupLow, searchTupLow, result);
+    delete [] result;
+
+    result = new int[records * 6];
+    int tupleCount2 = tree.searchRangeNoAlloc(searchTupLow, searchTupLow, result);
+    delete [] result;
+
+    int tupleCount3 = tree.pointSearch(searchTupLow);
+
+    printf("Query: {41, 0}-{41, 1}, found: %d\n", tupleCount1);
+    printf("Query: {41, 0}, found: %d\n", tupleCount2);
+    printf("Query: {41, 0}, found: %d\n", tupleCount3);
+
+
+    int queries = 1000;
+    int queriesFound = 0;
+    cTuple<int>** tuplesLow = new cTuple<int>*[queries];
+    cTuple<int>** tuplesHigh = new cTuple<int>*[queries];
+    for(int i = 0; i < queries; i++) {
+        tuplesLow[i] = new cTuple<int>(new int[6]{rand()% maximum.attributes[0], rand()%maximum.attributes[1], i, i, i, i}, 6);
+        tuplesHigh[i] = new cTuple<int>(new int[6]{rand()% maximum.attributes[0], rand()%maximum.attributes[1], i, i, i, i}, 6);
+        if(tuplesLow[i]->isGT(*tuplesHigh[i])){
+            cTuple<int>* temp = tuplesLow[i];
+            tuplesLow[i] = tuplesHigh[i];
+            tuplesHigh[i] = temp;
+        }
+    }
+    queriesFound = 0;
+    
+    t1 = std::chrono::high_resolution_clock::now();
+    for(int i = 0; i < queries; i++) {
+        int * result = new int[records * 6];
+        int tupleCount = tree.searchRangeNoAlloc(*tuplesLow[i], *tuplesHigh[i], result);
+        if(tupleCount > 0) queriesFound++;
+        delete [] result;
+    }
+    t2 = std::chrono::high_resolution_clock::now();
+    time_span = std::chrono::duration_cast<std::chrono::duration<double>>(t2 - t1);
+    printf("Select range BpTable done. Time: %.2fs, Throughput: %.2f k. op/s.\n", time_span.count(), GetThroughput(queries, time_span.count(), 1000));
+    printf("Queries found: %d/%d\n\n", queriesFound, queries);
+    queriesFound = 0;
+    
+
+    int * results1 = new int[queries];
+    int * results2 = new int[queries];
+
+    t1 = std::chrono::high_resolution_clock::now();
+    for(int i = 0; i < queries; i++) {
+        int * result = new int[records * 6];
+        int tupleCount = tree.searchRangeNoAlloc(*tuplesLow[i], *tuplesLow[i], result);
+        results1[i] = tupleCount;
+        if(tupleCount > 0) queriesFound++;
+        delete [] result;
+    }
+    t2 = std::chrono::high_resolution_clock::now();
+    time_span = std::chrono::duration_cast<std::chrono::duration<double>>(t2 - t1);
+    printf("Select point BpTable done. Time: %.2fs, Throughput: %.2f k. op/s.\n", time_span.count(), GetThroughput(queries, time_span.count(), 1000));
+    printf("Queries found: %d/%d\n\n", queriesFound, queries);
+    queriesFound = 0;
+
+    t1 = std::chrono::high_resolution_clock::now();
+    for(int i = 0; i < queries; i++) {
+        int tupleCount = tree.pointSearch(*tuplesLow[i]);
+        if(tupleCount > 0) queriesFound++;
+        results2[i] = tupleCount;
+    }
+    t2 = std::chrono::high_resolution_clock::now();
+    time_span = std::chrono::duration_cast<std::chrono::duration<double>>(t2 - t1);
+    printf("Select point BpTable done, no results. Time: %.2fs, Throughput: %.2f k. op/s.\n", time_span.count(), GetThroughput(queries, time_span.count(), 1000));
+    printf("Queries found: %d/%d\n\n", queriesFound, queries);
+    queriesFound = 0;
+
+    printf("Result mismatches: \n");
+    for(int i = 0; i < queries; i++) {
+        int bruteForceCount = 0;
+        for(int k = 0; k < records; k++){
+            if(tuplesInsert[k]->isEQ(*tuplesLow[i], 2)){
+                bruteForceCount++;
+            }
+        }
+        if(results1[i] != bruteForceCount || results2[i] != bruteForceCount){
+            printf("%d: %d, %d, Brute: %d\n", i, results1[i], results2[i], bruteForceCount);
+            printf("Query: ");
+            tuplesLow[i]->printTuple();
+            printf("---------------------------\n");
+        }
+    }
+
+    for(int i = 0; i < queries; i++) {
+        delete tuplesLow[i];
+        delete tuplesHigh[i];
+    }
+    delete [] tuplesLow;
+    delete [] tuplesHigh;
+    delete [] results1;
+    delete [] results2;
+}
+
 int main() {
+    //smallTestCase();
+    largeTestCase();
+
+
     // Create a B+ tree with 2 indexed attributes and 2 non-indexed attributes
     // and maximum 3 elements in a inner node and 8 elements in a leaf node
 
@@ -151,109 +390,5 @@ int main() {
         //tree.printMetadata();
     }
 */
-//TESTCASE 3 
-
-    cBpTree<int> tree(6, 2, 4, 8, 8);
-
-    // Insert some data
-    srand(170400);
-    int records = 200;
-
-    cTuple maximum = cTuple(new int[6]{50, 5, -1, -1, -1, -1}, 6);
-
-    auto t1 = std::chrono::high_resolution_clock::now();
-    for(int i = 0; i < records; i++) {
-        cTuple tuple(new int[6]{rand()% maximum.attributes[0], rand()%maximum.attributes[1], i, i, i, i}, 6);
-        if(!tree.insert(tuple)){
-            printf("Insertion failed!\n");
-            break;
-        }
-    }
-    auto t2 = std::chrono::high_resolution_clock::now();
-    std::chrono::duration<double> time_span = std::chrono::duration_cast<std::chrono::duration<double>>(t2 - t1);
-    if(records <= 1000)tree.printBpTree();
-    tree.printMetadata();
-    printf("BpTree MB: %.3f\n",BytesToMB(tree.getBpTreeBytes()));
-
-    printf("Insert BpTable done. Time: %.2fs, Throughput: %.2f mil. op/s.\n\n", time_span.count(), GetThroughput(records, time_span.count()));
-    
-    
-    cTuple searchTupLow = cTuple(new int[6]{41, 0, -1, -1, -1, -1}, 6);
-    cTuple searchTupHigh = cTuple(new int[6]{41, 1, -1, -1, -1, -1}, 6);
-    int * result;
-    int all;
-    int tupleCount1 = tree.searchRange(searchTupLow, searchTupHigh, result, all, true);
-    if(all>=0) delete [] result;
-
-    int tupleCount2 = tree.searchRange(searchTupLow, searchTupLow, result, all, true);
-    if(all>=0) delete [] result;
-
-    int tupleCount3 = tree.pointSearch(searchTupLow);
-
-    printf("Query: {41, 0}-{41, 1}, found: %d\n", tupleCount1);
-    printf("Query: {41, 0}, found: %d\n", tupleCount2);
-    printf("Query: {41, 0}, found: %d\n", tupleCount3);
-
-
-    int queries = 1000;
-    int queriesFound = 0;
-    cTuple<int>** tuplesLow = new cTuple<int>*[queries];
-    cTuple<int>** tuplesHigh = new cTuple<int>*[queries];
-    for(int i = 0; i < queries; i++) {
-        tuplesLow[i] = new cTuple<int>(new int[6]{rand()% maximum.attributes[0], rand()%maximum.attributes[1], i, i, i, i}, 6);
-        tuplesHigh[i] = new cTuple<int>(new int[6]{rand()% maximum.attributes[0], rand()%maximum.attributes[1], i, i, i, i}, 6);
-        if(tuplesLow[i]->isGT(*tuplesHigh[i])){
-            cTuple<int>* temp = tuplesLow[i];
-            tuplesLow[i] = tuplesHigh[i];
-            tuplesHigh[i] = temp;
-        }
-    }
-    queriesFound = 0;
-    
-    t1 = std::chrono::high_resolution_clock::now();
-    for(int i = 0; i < queries; i++) {
-        int * result;
-        int all;
-        int tupleCount = tree.searchRange(*tuplesLow[i], *tuplesHigh[i], result, all);
-        if(tupleCount > 0) queriesFound++;
-        if(all >= 0) delete [] result;
-    }
-    t2 = std::chrono::high_resolution_clock::now();
-    time_span = std::chrono::duration_cast<std::chrono::duration<double>>(t2 - t1);
-    printf("Select range BpTable done. Time: %.2fs, Throughput: %.2f k. op/s.\n", time_span.count(), GetThroughput(queries, time_span.count(), 1000));
-    printf("Queries found: %d/%d\n\n", queriesFound, queries);
-    queriesFound = 0;
-    
-
-    t1 = std::chrono::high_resolution_clock::now();
-    for(int i = 0; i < queries; i++) {
-        int * result;
-        int all;
-        int tupleCount = tree.searchRange(*tuplesLow[i], *tuplesLow[i], result, all);
-        if(tupleCount > 0) queriesFound++;
-        if(all >= 0) delete [] result;
-    }
-    t2 = std::chrono::high_resolution_clock::now();
-    time_span = std::chrono::duration_cast<std::chrono::duration<double>>(t2 - t1);
-    printf("Select point BpTable done. Time: %.2fs, Throughput: %.2f k. op/s.\n", time_span.count(), GetThroughput(queries, time_span.count(), 1000));
-    printf("Queries found: %d/%d\n\n", queriesFound, queries);
-    queriesFound = 0;
-
-    t1 = std::chrono::high_resolution_clock::now();
-    for(int i = 0; i < queries; i++) {
-        int tupleCount = tree.pointSearch(*tuplesLow[i]);
-        if(tupleCount > 0) queriesFound++;
-    }
-    t2 = std::chrono::high_resolution_clock::now();
-    time_span = std::chrono::duration_cast<std::chrono::duration<double>>(t2 - t1);
-    printf("Select point BpTable done, no results. Time: %.2fs, Throughput: %.2f k. op/s.\n", time_span.count(), GetThroughput(queries, time_span.count(), 1000));
-    printf("Queries found: %d/%d\n\n", queriesFound, queries);
-    queriesFound = 0;
-
-    for(int i = 0; i < queries; i++) {
-        delete tuplesLow[i];
-        delete tuplesHigh[i];
-    }
-
     return 0;
 }

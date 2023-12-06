@@ -149,7 +149,7 @@ class cInnerNode : public cNode<T> {
             if(index > this->getCount())
                 return false;
             //Make space for new element
-            memcpy(
+            memmove(
                 this->nData + this->metadata->nDataStartBShift + ((index + 1) * this->metadata->nDataElementInnerSize), 
                 this->nData + this->metadata->nDataStartBShift + (index * this->metadata->nDataElementInnerSize), 
                 this->metadata->nDataElementInnerSize * (this->getCount() - index)
