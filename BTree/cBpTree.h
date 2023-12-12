@@ -65,6 +65,9 @@ public:
     double getBpTreeBytes(){
         return this->metadata->getBpTreeAllocatedBytes();
     }
+    int getTupleCount(){
+        return this->metadata->tupleCount;
+    }
     bool insert(cTuple<T>& tuple) {
         cStack<cNode<T>*> stack = cStack<cNode<T>*>(this->metadata->order);
         stack.push(this->root, 0);
@@ -499,6 +502,9 @@ public:
                         break;
                     }
                 }
+                if(i == count){
+                    first = innerNode->getChild(i-1);
+                }
             }
         }
         //Now find last leaf node, search until Leaf node is reached
@@ -518,7 +524,9 @@ public:
                         break;
                     }
                 }
-
+                if(j == -1){
+                    last = innerNode->getChild(0);
+                }
             }
         }
         //Check if first and last didnt pass each other
