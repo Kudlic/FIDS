@@ -4,6 +4,8 @@
 #include <fstream>
 #include <sstream>
 #include <string>
+#include <cstring>
+#include <bitset>
 
 #include "cRowHeapTable.h"
 
@@ -34,8 +36,7 @@ int main()
     return 0;
 }
 
-float GetThroughput(int opsCount, float period, int unit)
-{
+float GetThroughput(int opsCount, float period, int unit){
     return ((float)opsCount / unit) / period;
 }
 float BytesToMB(int bytes){
