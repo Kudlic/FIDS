@@ -1,6 +1,7 @@
 #pragma once
 
 #include "bitMapIndex.h"
+typedef unsigned int uint;
 
 class cRowHeapTable
 {

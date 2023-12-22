@@ -12,7 +12,7 @@ float GetThroughput(int opsCount, float period, int unit = 1000000)
 float BytesToMB(int bytes){
     return (float)bytes / 1024 / 1024;
 }
-
+/*
 void smallTestCase(){
     //TESTCASE 3 
 
@@ -258,6 +258,8 @@ void largeTestCase(){
     delete [] results1;
     delete [] results2;
 }
+*/
+
 //records is array of record counts
 //with each loop we will fill tree to records[i] and then do x queries
 void benchmark(int* records, int recordsSize, int queries, int n1, int n2, int nodeSize, char delimiter = '|'){
@@ -328,29 +330,29 @@ void benchmark(int* records, int recordsSize, int queries, int n1, int n2, int n
             GetThroughput(records[m], time_span_insert.count(), 1000), delimiter);
         fflush(stdout);
         //tree.printBpTree();
+        int * result1 = new int[records[m] * n];
         t1 = std::chrono::high_resolution_clock::now();
         for(int i = 0; i < queries; i++) {
-            int * result = new int[records[m] * n];
             //printf("Query: %d\n", i);
             //tuplesLow[i]->printTuple();
             //tuplesHigh[i]->printTuple();
-            int tupleCount = tree.searchRangeNoAlloc(*tuplesLow[i], *tuplesHigh[i], result, 0);
-            delete [] result;
+            int tupleCount = tree.searchRangeNoAlloc(*tuplesLow[i], *tuplesHigh[i], result1, 0);
         }
         t2 = std::chrono::high_resolution_clock::now();
+        delete [] result1;
         std::chrono::duration<double> time_span_range = std::chrono::duration_cast<std::chrono::duration<double>>(t2 - t1);
         printf("%.3f %c %.3f %c ", 
             time_span_range.count(), delimiter, 
             GetThroughput(queries, time_span_range.count(), 1000), delimiter);
         fflush(stdout);
 
+        int * result2 = new int[records[m] * n];
         t1 = std::chrono::high_resolution_clock::now();
         for(int i = 0; i < queries; i++) {
-            int * result = new int[records[m] * n];
-            int tupleCount = tree.searchRangeNoAlloc(*tuplesLow[i], *tuplesLow[i], result, 0);
-            delete [] result;
+            int tupleCount = tree.searchRangeNoAlloc(*tuplesLow[i], *tuplesLow[i], result2, 0);
         }
         t2 = std::chrono::high_resolution_clock::now();
+        delete [] result2;
         std::chrono::duration<double> time_span_point = std::chrono::duration_cast<std::chrono::duration<double>>(t2 - t1);
         printf("%.3f %c %.3f\n", 
             time_span_point.count(), delimiter, 
@@ -358,6 +360,14 @@ void benchmark(int* records, int recordsSize, int queries, int n1, int n2, int n
         fflush(stdout);
     }
 
+    for(int i = 0; i < records[recordsSize-1]; i++) {
+        delete tuplesInsert[i];
+    }
+
+    for(int i = 0; i < queries; i++) {
+        delete tuplesLow[i];
+        delete tuplesHigh[i];
+    }
     delete [] tuplesInsert;
     delete [] tuplesLow;
     delete [] tuplesHigh;
@@ -368,6 +378,8 @@ int main() {
     //largeTestCase();
     int recSize = 5;
     int * records = new int[recSize]{int(1e3), int(1e4), int(1e5), int(1e6), int(4e6)};
+    benchmark(records, recSize, 1000, 2,  2, 16,  ',');
+    benchmark(records, recSize, 1000, 2,  2, 32,  ',');
     benchmark(records, recSize, 1000, 2,  2, 64,  ',');
     benchmark(records, recSize, 1000, 2,  2, 128, ',');
     benchmark(records, recSize, 1000, 4,  8, 64,  ',');
@@ -376,6 +388,7 @@ int main() {
     benchmark(records, recSize, 1000, 8,  8, 128, ',');
     benchmark(records, recSize, 1000, 16, 4, 64,  ',');
     benchmark(records, recSize, 1000, 16, 4, 128, ',');
+
 
     // Create a B+ tree with 2 indexed attributes and 2 non-indexed attributes
     // and maximum 3 elements in a inner node and 8 elements in a leaf node

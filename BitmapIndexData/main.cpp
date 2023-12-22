@@ -24,15 +24,18 @@ void RowHeapCollection(char * datacol);
 int main()
 {
     const int RowCount = 1e7;
+    const char* datacol1 = "../datacol1";
+    const char* datacol2 = "../datacol2";
+    const char* datacol3 = "../datacol3";
     
     //RowHeapTableTest(10);
     //printf("\n");
 
     //RowHeapTableBenchmark(RowCount);
 
-    RowHeapCollection("../datacol1");
-    RowHeapCollection("../datacol2");
-    RowHeapCollection("../datacol3");
+    RowHeapCollection(const_cast<char*>(datacol1));
+    RowHeapCollection(const_cast<char*>(datacol2));
+    RowHeapCollection(const_cast<char*>(datacol3));
     return 0;
 }
 

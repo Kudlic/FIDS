@@ -5,6 +5,7 @@
 #include <sstream>
 #include <string>
 #include <cmath>
+#include <cstring>
 
 #include "cRowHeapTable.h"
 
@@ -19,7 +20,7 @@ void RowHeapTableTest(const int rowCount);
 void RowHeapTableBenchmark(const int rowCount);
 void RowHeapCollection(char * datacol);
 void HashIndexBenchmark(const int rowCount, int nodeSize = 2048);
-void HashIndexCollection(char * datacol, int attr_indices[], int attr_count);
+void HashIndexCollection(char * datacol, int *attr_indices, int attr_count);
 
 
 int main()
@@ -538,7 +539,6 @@ void RowHeapCollection(char* datacol) {
     delete[] results2;
     delete[] resultsFromFile;
 }
-
 void HashIndexCollection(char * datacol, int* attr_indices, int attr_count){
      // Combine the folder path with the filenames
     auto t1= high_resolution_clock::now();

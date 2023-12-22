@@ -4,49 +4,10 @@ template<typename TT>
 class cTreeMetadata {
 public:
     // Constructor
-    cTreeMetadata(int n, int n1, int n2, int maxInnerNodeElements, int maxLeafNodeElements) : 
-        n(n), 
-        n1(n1), 
-        n2(n2), 
-        maxInnerNodeElements(maxInnerNodeElements),
-        maxLeafNodeElements(maxLeafNodeElements),
-        order(0),
-        tupleCount(0),
-        leafNodeCount(0),
-        innerNodeCount(0),
-        nDataIsLeafNodeBShift(0),
-        nDataCountBShift(4),
-        nDataNodeLinkBShift(8) {
-            nDataStartBShift = nDataNodeLinkBShift+sizeof(char*);
-            attrSize = sizeof(TT);
-            nDataSizeLeaf = (nDataStartBShift) + (attrSize * n * maxLeafNodeElements);
-            nDataSizeInner = (nDataStartBShift) + ((sizeof(char*) + (n1 * attrSize * 2)) * maxInnerNodeElements);
-            nDataElementLeafSize = attrSize * n;
-            nDataElementInnerSize = (n1 * attrSize * 2) + sizeof(char*);
-            nDataElementInnerTupleSize = n1 * attrSize;
-            halfInnerNode = maxInnerNodeElements/2;
-            halfLeafNode = maxLeafNodeElements/2;
+    cTreeMetadata(int n, int n1, int n2, int maxInnerNodeElements, int maxLeafNodeElements);
 
-            nDataInnerNodeElementChildBShift = (n1 * attrSize * 2);
-            nDataInnerNodeElementRangeLowBShift = 0;
-            nDataInnerNodeElementRangeHighBShift = (n1 * attrSize);
-        }
-    void printMetadata() {
-        std::cout << "n: " << n << std::endl;
-        std::cout << "n1: " << n1 << std::endl;
-        std::cout << "n2: " << n2 << std::endl;
-        std::cout << "maxInnerNodeElements: " << maxInnerNodeElements << std::endl;
-        std::cout << "maxLeafNodeElements: " << maxLeafNodeElements << std::endl;
-        std::cout << "order: " << order << std::endl;
-        std::cout << "tupleCount: " << tupleCount << std::endl;
-        std::cout << "leafNodeCount: " << leafNodeCount << std::endl;
-        std::cout << "innerNodeCount: " << innerNodeCount << std::endl;
-        std::cout << "nDataSizeLeaf: " << nDataSizeLeaf << std::endl;
-        std::cout << "nDataSizeInner: " << nDataSizeInner << std::endl;
-    }
-    double getBpTreeAllocatedBytes(){
-        return ((nDataSizeLeaf * leafNodeCount)+(nDataSizeInner * innerNodeCount));
-    }
+    void printMetadata();
+    double getBpTreeAllocatedBytes();
 
 private:
     //Constants
@@ -87,3 +48,52 @@ private:
     template<typename T> friend class cLeafNode;
     template<typename T> friend class cInnerNode;
 };
+
+template<typename TT>
+cTreeMetadata<TT>::cTreeMetadata(int n, int n1, int n2, int maxInnerNodeElements, int maxLeafNodeElements) : 
+    n(n), 
+    n1(n1), 
+    n2(n2), 
+    maxInnerNodeElements(maxInnerNodeElements),
+    maxLeafNodeElements(maxLeafNodeElements),
+    order(0),
+    tupleCount(0),
+    leafNodeCount(0),
+    innerNodeCount(0),
+    nDataIsLeafNodeBShift(0),
+    nDataCountBShift(4),
+    nDataNodeLinkBShift(8) {
+        nDataStartBShift = nDataNodeLinkBShift+sizeof(char*);
+        attrSize = sizeof(TT);
+        nDataSizeLeaf = (nDataStartBShift) + (attrSize * n * maxLeafNodeElements);
+        nDataSizeInner = (nDataStartBShift) + ((sizeof(char*) + (n1 * attrSize * 2)) * maxInnerNodeElements);
+        nDataElementLeafSize = attrSize * n;
+        nDataElementInnerSize = (n1 * attrSize * 2) + sizeof(char*);
+        nDataElementInnerTupleSize = n1 * attrSize;
+        halfInnerNode = maxInnerNodeElements/2;
+        halfLeafNode = maxLeafNodeElements/2;
+
+        nDataInnerNodeElementChildBShift = (n1 * attrSize * 2);
+        nDataInnerNodeElementRangeLowBShift = 0;
+        nDataInnerNodeElementRangeHighBShift = (n1 * attrSize);
+}
+
+template<typename TT>
+void cTreeMetadata<TT>::printMetadata() {
+    std::cout << "n: " << n << std::endl;
+    std::cout << "n1: " << n1 << std::endl;
+    std::cout << "n2: " << n2 << std::endl;
+    std::cout << "maxInnerNodeElements: " << maxInnerNodeElements << std::endl;
+    std::cout << "maxLeafNodeElements: " << maxLeafNodeElements << std::endl;
+    std::cout << "order: " << order << std::endl;
+    std::cout << "tupleCount: " << tupleCount << std::endl;
+    std::cout << "leafNodeCount: " << leafNodeCount << std::endl;
+    std::cout << "innerNodeCount: " << innerNodeCount << std::endl;
+    std::cout << "nDataSizeLeaf: " << nDataSizeLeaf << std::endl;
+    std::cout << "nDataSizeInner: " << nDataSizeInner << std::endl;
+}
+
+template<typename TT>
+double cTreeMetadata<TT>::getBpTreeAllocatedBytes(){
+    return ((nDataSizeLeaf * leafNodeCount)+(nDataSizeInner * innerNodeCount));
+}

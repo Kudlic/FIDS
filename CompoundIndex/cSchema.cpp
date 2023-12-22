@@ -13,10 +13,12 @@ cSchema::cSchema(int count, int* sizeArray, int* valueCountArray)
 int cSchema::GetAttrCount() {
     return AttrCount;
 }
+
 // Getter method for AttrSize
 int* cSchema::GetAttrSize() {
     return AttrSize;
 }
+
 // Getter method for AttrValueCount
 int* cSchema::GetAttrValueCount() {
     return AttrValueCount;

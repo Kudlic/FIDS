@@ -4,120 +4,159 @@
 template<typename T>
 class cTuple {
 public:
-    cTuple(int n) : n(n), isWrapper(0) {
-        attributes = new T[n];
-    }
-    cTuple(T* attributes, int n, bool isWrapper = 0) : attributes(attributes), n(n), isWrapper(isWrapper) {}
-    ~cTuple() {
-        if(!isWrapper){
-            delete[] attributes;
-        }
-        else{
-            attributes = nullptr;
-        }
-    }
+    cTuple(int n);
+    cTuple(T* attributes, int n, bool isWrapper = 0);
+    ~cTuple();
+    void setTuple(T* attributes, int n);
+    void printTuple();
+    bool isEQ(cTuple<T>& tuple, int n = -1);
+    bool isLT(cTuple<T>& tuple, int n = -1);
+    bool isGT(cTuple<T>& tuple, int n = -1);
+    bool isLEQT(cTuple<T>& tuple, int n = -1);
+    bool isGEQT(cTuple<T>& tuple, int n = -1);
+    bool isTupleBetween(cTuple<T>& tuple1, cTuple<T>& tuple2, int n = -1);
+    float getTupleDistance(cTuple<T>& tuple, int n = -1);
+    float getTupleRangeDistance(cTuple<T>& tuple1, cTuple<T>& tuple2, int n = -1);
+    
     T* attributes;
     int n; // Number of attributes
     bool isWrapper;
-    void setTuple(T* attributes, int n) {
-        // Implementation for setTuple method
-        this->attributes = attributes;
-        this->n = n;
-    }
-    void printTuple() {
-        printf("Tuple: ");
-        for(int i = 0; i < n; i++){
-            printf("%d ", attributes[i]);
-        }
-        printf("\n");
-    }
-    bool isEQ(cTuple<T>& tuple, int n = -1) {
-        // Implementation for isTupleEqual method
-        if(n == -1){
-            n = tuple.n;
-        }
-        for(int i = 0; i < n; i++){
-            if(attributes[i] != tuple.attributes[i]){
-                return false;
-            }
-        }
-        return true;
-    }
-    bool isLT(cTuple<T>& tuple, int n = -1) {
-        if(n == -1){
-            n = tuple.n;
-        }
-        for(int i = 0; i < n; i++){
-            if(attributes[i] != tuple.attributes[i]){
-                return attributes[i] < tuple.attributes[i];
-            }
-        }
-        return false;
-    }
-    bool isGT(cTuple<T>& tuple, int n = -1) {
-        if(n == -1){
-            n = tuple.n;
-        }
-        for(int i = 0; i < n; i++){
-            if(attributes[i] != tuple.attributes[i]){
-                return attributes[i] > tuple.attributes[i];
-            }
-        }
-        return false;
-    }
-    bool isLEQT(cTuple<T>& tuple, int n = -1) {
-        if(n == -1){
-            n = tuple.n;
-        }
-        for(int i = 0; i < n; i++){
-            if(attributes[i] != tuple.attributes[i]){
-                return attributes[i] < tuple.attributes[i];
-            }
-        }
-        return true;
-    }
-    bool isGEQT(cTuple<T>& tuple, int n = -1) {
-        if(n == -1){
-            n = tuple.n;
-        }
-        for(int i = 0; i < n; i++){
-            if(attributes[i] != tuple.attributes[i]){
-                return attributes[i] > tuple.attributes[i];
-            }
-        }
-        return true;
-    }
-    bool isTupleBetween(cTuple<T>& tuple1, cTuple<T>& tuple2, int n = -1) {
-        // Implementation for isTupleBetween method
-        if(n == -1){
-            n = tuple1.n;
-        }
-        return tuple1.isLEQT(*this, n) && tuple2.isGEQT(*this, n);
-    }
-
-    float getTupleDistance(cTuple<T>& tuple, int n = -1) {
-        // Implementation for getTupleDistance method
-        if(n == -1){
-            n = tuple.n;
-        }
-        float distance = 0;
-        for(int i = 0; i < n; i++){
-            distance += (attributes[i] - tuple.attributes[i]) * (attributes[i] - tuple.attributes[i]);
-        }
-        return distance;
-    }
-    float getTupleRangeDistance(cTuple<T>& tuple1, cTuple<T>& tuple2, int n = -1) {
-        // Implementation for getTupleRangeDistance method
-        // distance is 0 if tuple is between tuple1 and tuple2, otherwise it is the distance to the closest tuple
-        if(n == -1){
-            n = tuple1.n;
-        }
-        if(isTupleBetween(tuple1, tuple2, n)){
-            return 0.0;
-        }
-        float distance1 = getTupleDistance(tuple1, n);
-        float distance2 = getTupleDistance(tuple2, n);
-
-        return distance1 < distance2 ? distance1 : distance2;
-    }
 };
+
+template<typename T>
+cTuple<T>::cTuple(int n) : n(n), isWrapper(0) {
+    attributes = new T[n];
+}
+
+template<typename T>
+cTuple<T>::cTuple(T* attributes, int n, bool isWrapper) : attributes(attributes), n(n), isWrapper(isWrapper) {}
+
+template<typename T>
+cTuple<T>::~cTuple() {
+    if(!isWrapper){
+        delete[] attributes;
+    }
+    else{
+        attributes = nullptr;
+    }
+}
+
+template<typename T>
+void cTuple<T>::setTuple(T* attributes, int n) {
+    // Implementation for setTuple method
+    this->attributes = attributes;
+    this->n = n;
+}
+
+template<typename T>
+void cTuple<T>::printTuple() {
+    printf("Tuple: ");
+    for(int i = 0; i < n; i++){
+        printf("%d ", attributes[i]);
+    }
+    printf("\n");
+}
+
+template<typename T>
+bool cTuple<T>::isEQ(cTuple<T>& tuple, int n) {
+    // Implementation for isTupleEqual method
+    if(n == -1){
+        n = tuple.n;
+    }
+    for(int i = 0; i < n; i++){
+        if(attributes[i] != tuple.attributes[i]){
+            return false;
+        }
+    }
+    return true;
+}
+
+template<typename T>
+bool cTuple<T>::isLT(cTuple<T>& tuple, int n) {
+    if(n == -1){
+        n = tuple.n;
+    }
+    for(int i = 0; i < n; i++){
+        if(attributes[i] != tuple.attributes[i]){
+            return attributes[i] < tuple.attributes[i];
+        }
+    }
+    return false;
+}
+
+template<typename T>
+bool cTuple<T>::isGT(cTuple<T>& tuple, int n) {
+    if(n == -1){
+        n = tuple.n;
+    }
+    for(int i = 0; i < n; i++){
+        if(attributes[i] != tuple.attributes[i]){
+            return attributes[i] > tuple.attributes[i];
+        }
+    }
+    return false;
+}
+
+template<typename T>
+bool cTuple<T>::isLEQT(cTuple<T>& tuple, int n) {
+    if(n == -1){
+        n = tuple.n;
+    }
+    for(int i = 0; i < n; i++){
+        if(attributes[i] != tuple.attributes[i]){
+            return attributes[i] < tuple.attributes[i];
+        }
+    }
+    return true;
+}
+
+template<typename T>
+bool cTuple<T>::isGEQT(cTuple<T>& tuple, int n) {
+    if(n == -1){
+        n = tuple.n;
+    }
+    for(int i = 0; i < n; i++){
+        if(attributes[i] != tuple.attributes[i]){
+            return attributes[i] > tuple.attributes[i];
+        }
+    }
+    return true;
+}
+
+template<typename T>
+bool cTuple<T>::isTupleBetween(cTuple<T>& tuple1, cTuple<T>& tuple2, int n) {
+    // Implementation for isTupleBetween method
+    if(n == -1){
+        n = tuple1.n;
+    }
+    return tuple1.isLEQT(*this, n) && tuple2.isGEQT(*this, n);
+}
+
+template<typename T>
+float cTuple<T>::getTupleDistance(cTuple<T>& tuple, int n) {
+    // Implementation for getTupleDistance method
+    if(n == -1){
+        n = tuple.n;
+    }
+    float distance = 0;
+    for(int i = 0; i < n; i++){
+        distance += (attributes[i] - tuple.attributes[i]) * (attributes[i] - tuple.attributes[i]);
+    }
+    return distance;
+}
+
+template<typename T>
+float cTuple<T>::getTupleRangeDistance(cTuple<T>& tuple1, cTuple<T>& tuple2, int n) {
+    // Implementation for getTupleRangeDistance method
+    // distance is 0 if tuple is between tuple1 and tuple2, otherwise it is the distance to the closest tuple
+    if(n == -1){
+        n = tuple1.n;
+    }
+    if(isTupleBetween(tuple1, tuple2, n)){
+        return 0.0;
+    }
+    float distance1 = getTupleDistance(tuple1, n);
+    float distance2 = getTupleDistance(tuple2, n);
+
+    return distance1 < distance2 ? distance1 : distance2;
+}

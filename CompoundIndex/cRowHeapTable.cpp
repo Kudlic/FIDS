@@ -1,31 +1,35 @@
 #include <assert.h>
 #include <stdlib.h>
 #include <cstring>
-#include <iostream>
-#include <string>
-#include "bitMapIndex.h"
+#include <cmath>
 #include "cRowHeapTable.h"
 
-int cRowHeapTable::getRowSize()
-{
+int cRowHeapTable::getRowSize(){
     return mSize;
 }
-
-int cRowHeapTable::getBitmapBytes()
-{
+int cRowHeapTable::getBitmapBytes(){
     return mIndex->getBitmapBytes();
 }
-
-int cRowHeapTable::getHeapBytes()
-{
+int cRowHeapTable::getHeapBytes(){
     return mSize * mCount;
 }
-
-cSchema* cRowHeapTable::getSchema()
-{
+int cRowHeapTable::getHashBytes(){
+    return hash->getHashBytes();
+}
+int cRowHeapTable::getHashStatBytes(){
+    return hash->getHashBytesS();
+}
+cSchema* cRowHeapTable::getSchema(){
     return schema;
 }
+int cRowHeapTable::countBitsForDecimal(int decimalNumber) {
+    if (decimalNumber <= 0) {
+        return 1; // 0 requires 1 bit to represent.
+    }
 
+    int bits = static_cast<int>(std::ceil(std::log2(decimalNumber + 1)));
+    return bits;
+}
 cRowHeapTable::cRowHeapTable(cSchema* schema, uint rowCount)
 {
     this->schema = schema;
@@ -38,7 +42,6 @@ cRowHeapTable::cRowHeapTable(cSchema* schema, uint rowCount)
     mCount = 0;
     mData = new char[mSize * rowCount];
 }
-
 cRowHeapTable::~cRowHeapTable()
 {
     if (mData != NULL)
@@ -50,12 +53,10 @@ cRowHeapTable::~cRowHeapTable()
         delete mIndex;
     }
 }
-
 inline char* cRowHeapTable::GetRowPointer(uint rowId) const
 {
     return mData + rowId * mSize;
 }
-
 bool cRowHeapTable::Insert(char* row)
 {
     if (mCount >= mCapacity) {
@@ -75,7 +76,6 @@ bool cRowHeapTable::Insert(char* row)
     mCount++;
     return true;
 }
-
 bool cRowHeapTable::Get(uint rowId, char* row) const
 {
     bool ret = false;
@@ -93,7 +93,6 @@ bool cRowHeapTable::Get(uint rowId, char* row) const
 
     return ret;
 }
-
 void cRowHeapTable::PrintRow(uint rowId) const
 {
     char* row = new char[mSize];
@@ -113,7 +112,6 @@ void cRowHeapTable::PrintRow(uint rowId) const
     }
     delete[] row;
 }
-
 bool cRowHeapTable::CreateBitmapIndex()
 {
     int *attr_idices = new int[schema->GetAttrCount()];
@@ -126,7 +124,7 @@ bool cRowHeapTable::CreateBitmapIndex()
         }
         x++;
     }
-    mIndex = new bitMapIndex(schema, attr_idices, mCapacity/*, this*/);
+    mIndex = new bitMapIndex(schema, attr_idices, mCapacity);
 
     for (int i = 0; i < mCount; i++)
     {
@@ -136,7 +134,6 @@ bool cRowHeapTable::CreateBitmapIndex()
     }
     return true;
 }
-
 int cRowHeapTable::Select(int *attrs, uint attrsCount, bool print)
 {
     if (!print){
@@ -198,7 +195,6 @@ int cRowHeapTable::Select(int *attrs, uint attrsCount, bool print)
         return count;
     }
 }
-
 int cRowHeapTable::SelectBitmap(int * attrs, uint attrsCount, bool print)
 {
     if (print){
@@ -215,3 +211,132 @@ int cRowHeapTable::SelectBitmap(int * attrs, uint attrsCount, bool print)
         return mIndex->Select(attrs, attrsCount);
     }
 }
+
+//input is ordered array of attribute indices that are to be indexed
+bool cRowHeapTable::CreateHashIndex(int* attr_idices, int indices_count, int nodeSize){
+    this->indexedAttr = attr_idices;
+    this->indexedAttrCount = indices_count;
+    int processed = 0;
+    int x = 0;
+    int mKeySizeBit = 0;
+
+    //Calculation on key size
+    /*
+    while(processed < indices_count && x < schema->GetAttrCount()){
+        if(schema->GetAttrValueCount()[x] != -1 && attr_idices[processed] == x) {
+            mKeySizeBit += countBitsForDecimal(schema->GetAttrValueCount()[x]);
+            processed ++;
+        }
+        x++;
+    }
+    int mKeySize = mKeySizeBit / 8;
+    if(mKeySizeBit % 8 != 0) mKeySize++;
+    */
+    int mKeySize = 0;
+    while(processed < indices_count && x < schema->GetAttrCount()){
+        if( attr_idices[processed] == x) {
+            mKeySize+= schema->GetAttrSize()[x];
+            processed ++;
+        }
+        x++;
+    }
+
+    hash = new HashIndex<TData>(schema, nodeSize, mKeySize, mCount);
+
+    for (int i = 0; i < mCount; i++)
+    {
+        char *p = GetRowPointer(i);
+        int attrProcessed = 0;
+
+        char * key = new char[mKeySize];
+        int offset = 0;
+        int keyOffset = 0;
+        for (int j = 0; j < schema->GetAttrCount(); j++)
+        {
+            if(schema->GetAttrValueCount()[j] != -1 && attr_idices[attrProcessed] == j) {
+                memcpy(key + keyOffset, p + offset, schema->GetAttrSize()[j]);
+                keyOffset += schema->GetAttrSize()[j];
+                attrProcessed++;
+            }
+            
+            offset += schema->GetAttrSize()[j];
+        }
+        //printf("Inserting key: %d, %d, %d,  HV: %d\n", key[0], key[1], key[2], hash->HashValue(key));
+        
+        if(!(hash->Insert(key, i))) return false;
+        delete[] key;
+    }
+    return true;
+}
+int cRowHeapTable::SelectHash(int * attrs, uint attrsCount, bool print){
+    bool allIndexed = true;
+    int idxAttrOffset = 0;
+    int hashQueryOffset = 0;
+    char *hashQuery = new char[indexedAttrCount];
+    for(int i = 0; i < attrsCount; i++){
+        if(attrs[i] == -1 && indexedAttr[idxAttrOffset] != i){
+            continue;
+        }
+        else if(attrs[i] != -1 && indexedAttr[idxAttrOffset] == i){
+            // Copy only the first byte of the integer to hashQuery
+            memcpy(hashQuery + hashQueryOffset, (char*)&attrs[i], 1);
+            idxAttrOffset++;
+            hashQueryOffset += schema->GetAttrSize()[i];
+        }
+        else {
+            allIndexed = false;
+            break;
+        }
+    }
+    if(!allIndexed){
+        return SelectBitmap(attrs, attrsCount, print);
+    }
+    else{
+        int * resultRowIds = new int[mCount];
+        int result = hash->Select(resultRowIds, hashQuery);
+        delete []resultRowIds;
+        return result; 
+    }
+}
+
+int cRowHeapTable::SelectHashStatistics(int* attrs, uint attrsCount){
+    //First check, whether query contains all and only indexed attributes
+    bool allIndexed = true;
+    int idxAttrOffset = 0;
+    int hashQueryOffset = 0;
+    char *hashQuery = new char[indexedAttrCount];
+    for(int i = 0; i < attrsCount; i++){
+        int attr1 = attrs[i];
+        int attr2 = indexedAttr[idxAttrOffset];
+        if(attrs[i] == -1 && indexedAttr[idxAttrOffset] != i){
+            continue;
+        }
+        else if(attrs[i] != -1 && indexedAttr[idxAttrOffset] == i){
+            // Copy only the first byte of the integer to hashQuery
+            memcpy(hashQuery + hashQueryOffset, (char*)&attrs[i], 1);
+            idxAttrOffset++;
+            hashQueryOffset += schema->GetAttrSize()[i];
+        }
+        else {
+            allIndexed = false;
+            break;
+        }
+    }
+    if(!allIndexed){
+        return SelectBitmap(attrs, attrsCount);
+    }
+    else{
+        /*
+        printf("Hash query: ");
+        for(int i = 0; i < hashQueryOffset; i++){
+            printf("%d ", hashQuery[i]);
+        }
+        printf("\n");
+        */
+        
+        int * resultRowIds = new int[mCount];
+        return hash->SelectStatistics(hashQuery);
+    }
+}
+
+
