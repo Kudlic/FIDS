@@ -36,7 +36,7 @@ Only arrays should be used.
 
 //TODO list:
 //  - implement delete
-//  - implement test, that saves all inserted tuples into array and then searches for them brute force
+//  - implement rangeQuery iterator, just move all variables into iterator class, find start and end nodes and also save them in iterator. Then just use some next or save methods to work with the result. We can avoid copying of data this way.
 
 template<typename T>
 class cBpTree {

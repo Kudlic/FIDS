@@ -1,6 +1,7 @@
 #include <stdio.h>
 #include <iostream>
 #include <chrono>
+#include <cstring>
 
 #include "cRowHeapTable.h"
 
@@ -116,7 +117,7 @@ void RowHeapTableBenchmark(const int rowCount)
     printf("bitMapIndex creation done. Time: %.2fs, Throughput: %.2f mil. op/s.\n", time_span.count(), GetThroughput(rowCount, time_span.count()));
 
     int queryCnt = 1000;
-    uint query[queryCnt][3][2];
+    uint (*query)[3][2] = new uint [queryCnt][3][2];
 
     for(int i = 0; i < queryCnt; i++){
         query[i][0][0] = 2;
@@ -164,6 +165,7 @@ void RowHeapTableBenchmark(const int rowCount)
             printf("\n");
     }
     */
+   delete []query;
     delete []results1;
     delete []results2;
     delete rowHeapTable;

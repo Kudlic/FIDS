@@ -110,10 +110,12 @@ bool cRowHeapTable::CreateBitmapIndex(int attr_len[], int attr_count, int rowCou
     }
     mIndex = new bitMapIndex(attr_len, attr_idices, attr_count, rowCount/*, this*/);
 
+    char * row = new char[attr_count];
+
     for (int i = 0; i < rowCount; i++)
     {
+        memset(row, 0, attr_count);
         char *p = GetRowPointer(i);
-        char row[attr_count] = { 0 };
         int inserted = 0;
         uint offset = 0;
 
@@ -124,8 +126,13 @@ bool cRowHeapTable::CreateBitmapIndex(int attr_len[], int attr_count, int rowCou
             }
             offset += mAtrsSize[j];
         }
-        if(!(mIndex->Insert(row))) return false;
+        if(!(mIndex->Insert(row))) {
+            delete[] row;
+            return false;
+        }
+            
     }
+    delete[] row;
     return true;
 }
 int cRowHeapTable::Select(uint attrs[][2], uint attrsCount, bool print)

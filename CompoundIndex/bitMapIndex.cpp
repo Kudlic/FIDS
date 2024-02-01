@@ -66,8 +66,8 @@ bool bitMapIndex::Insert(char* row) {
 }
 
 int bitMapIndex::Select(int * attrs, uint attrsCount, int* resultRowIds) {
-    char search[mByteSize] = { 0 };
-    char mask[mByteSize] = { 0 };
+    char* search = new char[mByteSize](); // () to initialize to zero
+    char* mask = new char[mByteSize]();   
 
     uint byteIndex = 0;
     uint bitIndex = 0;
@@ -129,6 +129,8 @@ int bitMapIndex::Select(int * attrs, uint attrsCount, int* resultRowIds) {
             }
         }
     }
+    delete [] search;
+    delete [] mask;
     return count;
 }
 

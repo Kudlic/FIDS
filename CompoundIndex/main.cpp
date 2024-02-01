@@ -38,8 +38,10 @@ int main()
     RowHeapCollection("../datacol2");
     RowHeapCollection("../datacol3");
     */
-    //HashIndexCollection("../datacol1", new int[3]{2,3,4}, 3);
-    //HashIndexCollection("../datacol2", new int[3]{4,5,6}, 3);
+    printf("\n\nTesting collection 1\n");
+    HashIndexCollection("../datacol1", new int[3]{2,3,4}, 3);
+    printf("\n\nTesting collection 2\n");
+    HashIndexCollection("../datacol2", new int[3]{4,5,6}, 3);
     return 0;
 }
 
@@ -139,7 +141,7 @@ void RowHeapTableBenchmark(const int rowCount)
     printf("bitMapIndex creation done. Time: %.2fs, Throughput: %.2f mil. op/s.\n", time_span.count(), GetThroughput(rowCount, time_span.count()));
 
     int queryCnt = 20;
-    int query[queryCnt][5];
+    int (*query)[5] = new int[queryCnt][5];
 
     for(int i = 0; i < queryCnt; i++){
         query[i][0] = -1;
@@ -186,7 +188,7 @@ void RowHeapTableBenchmark(const int rowCount)
         if(i % 10 == 0 && i != 0)
             printf("\n");
     }
-    
+    delete []query;
     delete []results1;
     delete []results2;
     delete rowHeapTable;
@@ -241,7 +243,7 @@ void HashIndexBenchmark(const int rowCount, int nodeSize)
     time_span = duration_cast<duration<double>>(t2 - t1);
     printf("hashIndex creation done. Time: %.2fs, Throughput: %.2f mil. op/s.\n", time_span.count(), GetThroughput(rowCount, time_span.count()));
     int queryCnt = 20;
-    int query[queryCnt][7];
+    int (*query)[7] = new int[queryCnt][7];
 
     for(int i = 0; i < queryCnt; i++){
         query[i][0] = -1;
@@ -323,6 +325,7 @@ void HashIndexBenchmark(const int rowCount, int nodeSize)
             printf("\n");
     }
     
+    delete []query;
     delete []results1;
     delete []results2;
     delete []results3;

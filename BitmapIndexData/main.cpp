@@ -134,7 +134,7 @@ void RowHeapTableBenchmark(const int rowCount)
     printf("bitMapIndex creation done. Time: %.2fs, Throughput: %.2f mil. op/s.\n", time_span.count(), GetThroughput(rowCount, time_span.count()));
 
     int queryCnt = 200;
-    int query[queryCnt][5];
+    int (*query)[5] = new int[queryCnt][5];
 
     for(int i = 0; i < queryCnt; i++){
         query[i][0] = -1;
@@ -182,6 +182,7 @@ void RowHeapTableBenchmark(const int rowCount)
             printf("\n");
     }
     
+    delete []query;
     delete []results1;
     delete []results2;
     delete rowHeapTable;
@@ -283,7 +284,7 @@ void RowHeapCollection(char* datacol) {
 
     // Process query.csv or perform other operations as needed
     int queryNum = 0;
-    int ** queries;
+    int ** queries = nullptr;
     FILE* file = fopen(queryFile, "r");
     if (file != NULL) {
         char line[256];
@@ -384,10 +385,12 @@ void RowHeapCollection(char* datacol) {
     delete[] valueBuffer;
     delete rowHeapTable;
     delete schema;
-    for(int i = 0; i < queryNum; i++){
-        delete queries[i];
+    if(queries!=nullptr){
+        for(int i = 0; i < queryNum; i++){
+            delete queries[i];
+        }
+        delete[] queries;
     }
-    delete[] queries;
     delete[] results1;
     delete[] results2;
     delete[] resultsFromFile;

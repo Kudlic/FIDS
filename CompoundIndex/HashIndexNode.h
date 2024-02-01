@@ -1,4 +1,6 @@
 #pragma once
+typedef unsigned int uint;
+
 template<class TData>
 class HashIndexNode
 {

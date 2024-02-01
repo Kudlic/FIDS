@@ -1,5 +1,6 @@
 #pragma once
 #include "cSchema.h"
+typedef unsigned int uint;
 
 class bitMapIndex 
 {

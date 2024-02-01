@@ -2,6 +2,8 @@
 #include "HashIndexNode.h"
 #include "cSchema.h"
 #include <iostream>
+typedef unsigned int uint;
+
 template<class TData>
 class HashIndex
 {
@@ -113,8 +115,8 @@ int HashIndex<TData>::SelectStatistics(char*& key) {
 template<class TData>
 int HashIndex<TData>::HashValue(char* key)
 {
-	u_int hash = 17;
-    u_int multiplier = 31;
+	uint hash = 17;
+    uint multiplier = 31;
 
     for (size_t i = 0; i < mKeySize; i++) {
         hash = (hash * multiplier) + key[i];
