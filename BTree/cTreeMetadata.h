@@ -70,8 +70,8 @@ cTreeMetadata<TT>::cTreeMetadata(int n, int n1, int n2, int maxInnerNodeElements
         nDataElementLeafSize = attrSize * n;
         nDataElementInnerSize = (n1 * attrSize * 2) + sizeof(char*);
         nDataElementInnerTupleSize = n1 * attrSize;
-        halfInnerNode = maxInnerNodeElements/2;
-        halfLeafNode = maxLeafNodeElements/2;
+        halfInnerNode = (maxInnerNodeElements-1)/2;
+        halfLeafNode = (maxLeafNodeElements-1)/2;
 
         nDataInnerNodeElementChildBShift = (n1 * attrSize * 2);
         nDataInnerNodeElementRangeLowBShift = 0;

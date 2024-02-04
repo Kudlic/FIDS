@@ -3,6 +3,9 @@
 #include <stdlib.h>
 #include <chrono>
 #include <algorithm>
+#include <cstring>
+#include <stdio.h>
+#include <random>
 
 int benchmarks = 0;
 float GetThroughput(int opsCount, float period, int unit = 1000000)
@@ -12,11 +15,9 @@ float GetThroughput(int opsCount, float period, int unit = 1000000)
 float BytesToMB(int bytes){
     return (float)bytes / 1024 / 1024;
 }
-/*
 void smallTestCase(){
     //TESTCASE 3 
-
-    cBpTree<int> tree(6, 2, 4, 8, 8);
+    cBpTree<int> tree(6, 2, 4, 5, 5);
 
     // Insert some data
     srand(170400);
@@ -43,14 +44,9 @@ void smallTestCase(){
     
     cTuple searchTupLow = cTuple(new int[6]{41, 0, -1, -1, -1, -1}, 6);
     cTuple searchTupHigh = cTuple(new int[6]{41, 1, -1, -1, -1, -1}, 6);
-    int * result;
-    int all;
-    int tupleCount1 = tree.searchRange(searchTupLow, searchTupHigh, result, all, true);
-    if(all>=0) delete [] result;
-
-    int tupleCount2 = tree.searchRange(searchTupLow, searchTupLow, result, all, true);
-    if(all>=0) delete [] result;
-
+    int * result = new int[records * 6];
+    int tupleCount1 = tree.searchRangeNoAlloc(searchTupLow, searchTupHigh, result, true);
+    int tupleCount2 = tree.searchRangeNoAlloc(searchTupLow, searchTupLow, result, true);
     int tupleCount3 = tree.pointSearch(searchTupLow);
 
     printf("Query: {41, 0}-{41, 1}, found: %d\n", tupleCount1);
@@ -75,11 +71,13 @@ void smallTestCase(){
     
     t1 = std::chrono::high_resolution_clock::now();
     for(int i = 0; i < queries; i++) {
-        int * result;
-        int all;
-        int tupleCount = tree.searchRange(*tuplesLow[i], *tuplesHigh[i], result, all);
+        int tupleCount = tree.searchRangeNoAlloc(*tuplesLow[i], *tuplesHigh[i], result, 0);
         if(tupleCount > 0) queriesFound++;
-        if(all >= 0) delete [] result;
+        /*if(tupleCount == 0){
+            tuplesLow[i]->printTuple();
+            tuplesHigh[i]->printTuple();
+            printf("---------------------------\n");
+        }*/
     }
     t2 = std::chrono::high_resolution_clock::now();
     time_span = std::chrono::duration_cast<std::chrono::duration<double>>(t2 - t1);
@@ -90,11 +88,8 @@ void smallTestCase(){
 
     t1 = std::chrono::high_resolution_clock::now();
     for(int i = 0; i < queries; i++) {
-        int * result;
-        int all;
-        int tupleCount = tree.searchRange(*tuplesLow[i], *tuplesLow[i], result, all);
+        int tupleCount = tree.searchRangeNoAlloc(*tuplesLow[i], *tuplesLow[i], result, 0);
         if(tupleCount > 0) queriesFound++;
-        if(all >= 0) delete [] result;
     }
     t2 = std::chrono::high_resolution_clock::now();
     time_span = std::chrono::duration_cast<std::chrono::duration<double>>(t2 - t1);
@@ -113,11 +108,87 @@ void smallTestCase(){
     printf("Queries found: %d/%d\n\n", queriesFound, queries);
     queriesFound = 0;
 
+    printf("Result mismatches: \n");
+    for(int i = 0; i < queries; i++) {
+        int tupleCount = tree.pointSearch(*tuplesLow[i]);
+        int tupleCountX = tree.searchRangeNoAlloc(*tuplesLow[i], *tuplesLow[i], result, 0);
+        if(tupleCount != tupleCountX) {
+            printf("%d: %d, %d\n", i, tupleCount, tupleCountX);
+            printf("Query: ");
+            tuplesLow[i]->printTuple();
+            printf("---------------------------\n");
+        }
+
+    }
+
     for(int i = 0; i < queries; i++) {
         delete tuplesLow[i];
         delete tuplesHigh[i];
     }
 }
+void deleteTestCase(){
+    cBpTree<int> tree(2, 1, 1, 5, 5);
+    // Insert some data
+    srand(170400);
+    int records = 20;
+
+    cTuple maximum = cTuple(new int[2]{50, -1}, 2);
+
+    auto t1 = std::chrono::high_resolution_clock::now();
+    for(int i = 0; i < records; i++) {
+        cTuple tuple(new int[2]{rand()% maximum.attributes[0], i}, 2);
+        if(!tree.insert(tuple)){
+            printf("Insertion failed!\n");
+            break;
+        }
+    }
+    auto t2 = std::chrono::high_resolution_clock::now();
+    std::chrono::duration<double> time_span = std::chrono::duration_cast<std::chrono::duration<double>>(t2 - t1);
+    if(records <= 1000)tree.printBpTree();
+    //tree.printMetadata();
+    printf("BpTree MB: %.3f\n",BytesToMB(tree.getBpTreeBytes()));
+
+    int deleteVals[20] = {0, 1, 2, 4, 5, 5, 8, 12, 15, 18, 26, 28, 30, 36, 36, 37, 38, 39, 46, 46};
+    for(int i = 0; i < 20; i++){
+        cTuple tuple(new int[1]{deleteVals[i]}, 1);
+        printf("Deleting: ");
+        tuple.printTuple();
+        tree.remove(tuple);
+        tree.printBpTree();
+    }
+}
+void deleteTestCaseRev(){
+    cBpTree<int> tree(2, 1, 1, 5, 5);
+    // Insert some data
+    srand(170400);
+    int records = 20;
+
+    cTuple maximum = cTuple(new int[2]{50, -1}, 2);
+
+    auto t1 = std::chrono::high_resolution_clock::now();
+    for(int i = 0; i < records; i++) {
+        cTuple tuple(new int[2]{rand()% maximum.attributes[0], i}, 2);
+        if(!tree.insert(tuple)){
+            printf("Insertion failed!\n");
+            break;
+        }
+    }
+    auto t2 = std::chrono::high_resolution_clock::now();
+    std::chrono::duration<double> time_span = std::chrono::duration_cast<std::chrono::duration<double>>(t2 - t1);
+    if(records <= 1000)tree.printBpTree();
+    //tree.printMetadata();
+    printf("BpTree MB: %.3f\n",BytesToMB(tree.getBpTreeBytes()));
+
+    int deleteVals[20] = {0, 1, 2, 4, 5, 5, 8, 12, 15, 18, 26, 28, 30, 36, 36, 37, 38, 39, 46, 46};
+    for(int i = 19; i >=0; i--){
+        cTuple tuple(new int[1]{deleteVals[i]}, 1);
+        printf("Deleting: ");
+        tuple.printTuple();
+        tree.remove(tuple);
+        tree.printBpTree();
+    }
+}
+/*
 void largeTestCase(){
     //TESTCASE 3 
     cBpTree<int> tree(6, 2, 4, 64, 32);
@@ -374,8 +445,11 @@ void benchmark(int* records, int recordsSize, int queries, int n1, int n2, int n
 }
 
 int main() {
-    //smallTestCase();
+    deleteTestCase();
+    deleteTestCaseRev();
     //largeTestCase();
+    
+    /*
     int recSize = 5;
     int * records = new int[recSize]{int(1e3), int(1e4), int(1e5), int(1e6), int(4e6)};
     benchmark(records, recSize, 1000, 2,  2, 16,  ',');
@@ -388,6 +462,7 @@ int main() {
     benchmark(records, recSize, 1000, 8,  8, 128, ',');
     benchmark(records, recSize, 1000, 16, 4, 64,  ',');
     benchmark(records, recSize, 1000, 16, 4, 128, ',');
+    */
 
 
     // Create a B+ tree with 2 indexed attributes and 2 non-indexed attributes

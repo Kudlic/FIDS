@@ -56,6 +56,7 @@ public:
     double getBpTreeBytes();
     int getTupleCount();
     bool insert(cTuple<T>& tuple);
+    bool remove(cTuple<T>& tuple);
     int pointSearch(cTuple<T>& tuple);
     int searchLinkedList(cTuple<T>& tupleLow, cTuple<T>& tupleHigh);
     int searchRange(cTuple<T>& tupleLow, cTuple<T>& tupleHigh, T*& resultData, int& allocatedCount, bool printData = false);
@@ -87,42 +88,39 @@ int cBpTree<T>::getTupleCount(){
 }
 template<typename T>
 bool cBpTree<T>::insert(cTuple<T>& tuple) {
+    //Initiate a node stack
     cStack<cNode<T>*> stack = cStack<cNode<T>*>(this->metadata->order);
     stack.push(this->root, 0);
     bool needToSplit = false;
+    //Iterate through the tree until leaf node is reached
     while (!stack.isEmpty() && !needToSplit) {
         int position = 0;
         cNode<T>* current = stack.peek(position);
         bool isLeaf = current->isLeafNode();
         int count = current->getCount();
 
-        if(isLeaf){
-            cLeafNode<T>* leafNode = dynamic_cast<cLeafNode<T>*>(current);
-            if(count >= leafNode->metadata->maxLeafNodeElements) {return false;}
-            leafNode->insertTuple(&tuple);
-            count = leafNode->getCount();
-            if(count >= leafNode->metadata->maxLeafNodeElements){
-                needToSplit = true;
-                break;
-            }
-            return true;
-        }
-        else if(!isLeaf){
+        //If current node is inner node, find child node to insert tuple into
+        if(!isLeaf){
             cInnerNode<T>* innerNode = dynamic_cast<cInnerNode<T>*>(current);
+            //If child is leaf node
             if(innerNode->getChild(0)->isLeafNode()){
                 //find child node to insert tuple
                 cLeafNode<T>* child = nullptr;
                 int childIndex = -1;
+                //Searching for range is simplified, if possible, always insert into earliest possible range, which will have range high widened
+                //Distances are not used to find closest tuple
                 for(int i = 0; i < count; i++) {
-                    //TODO: ensure we are not wasting memory here
+                    //Two tuples from range of inner node
                     cTuple<T> tupleLowObj = cTuple<T> ((T*)innerNode->getTupleLowPtr(i), innerNode->metadata->n1, true);
                     cTuple<T> tupleHighObj = cTuple<T> ((T*)innerNode->getTupleHighPtr(i), innerNode->metadata->n1, true);
 
                     if(tuple.isLT(tupleLowObj)) {
+                        //If tuple is lower than first tuple in inner node, insert into first child
                         if(i == 0){
                             childIndex = 0;
                             innerNode->widenLow(childIndex, &tuple);
                         }
+                        //Else insert into previous child
                         else{
                             childIndex = i-1;
                             innerNode->widenHigh(childIndex, &tuple);
@@ -145,6 +143,7 @@ bool cBpTree<T>::insert(cTuple<T>& tuple) {
                 stack.push(child, childIndex);
                 continue;
             }
+            //If child is not yet leaf
             else{
                 //find child node to insert tuple
                 cInnerNode<T>* child = nullptr;
@@ -181,6 +180,18 @@ bool cBpTree<T>::insert(cTuple<T>& tuple) {
                 continue;
             }
         }
+        //If current node is leaf node, insert tuple into it and jump to checking for splits
+        else if(isLeaf){
+            cLeafNode<T>* leafNode = dynamic_cast<cLeafNode<T>*>(current);
+            if(count >= leafNode->metadata->maxLeafNodeElements) {return false;}
+            leafNode->insertTuple(&tuple);
+            count = leafNode->getCount();
+            if(count >= leafNode->metadata->maxLeafNodeElements){
+                needToSplit = true;
+                break;
+            }
+            return true;
+        }
     }
     while(!stack.isEmpty() && needToSplit){
         int position = 0;
@@ -208,6 +219,189 @@ bool cBpTree<T>::insert(cTuple<T>& tuple) {
     }
     return true;
 }
+
+//First try to find the appropriate record using between on ranges, preemptively stop if not found
+template<typename T>
+bool cBpTree<T>::remove(cTuple<T>& tuple){
+    //Initiate a node stack
+    cStack<cNode<T>*> stack = cStack<cNode<T>*>(this->metadata->order);
+    stack.push(this->root, 0);
+    bool needToMerge = false;
+    int position = -1;
+    //Iterate through the tree until leaf node is reached
+    while (!stack.isEmpty() && !needToMerge) {
+        cNode<T>* current = stack.peek(position);
+        bool isLeaf = current->isLeafNode();
+        int count = current->getCount();
+        if(!isLeaf){
+            cInnerNode<T>* innerNode = dynamic_cast<cInnerNode<T>*>(current);
+            int i = 0;
+            for(; i < count; i++) {
+                cTuple<T> tupHigh = cTuple<T> ((T*)innerNode->getTupleHighPtr(i), innerNode->metadata->n1, true);
+                if(tupHigh.isGEQT(tuple, innerNode->metadata->n1)){
+                    current = innerNode->getChild(i);
+                    break;
+                }
+            }
+            if(i == count){
+                return false;
+            }
+            stack.push(current, i);
+            continue;
+        }
+        else if(isLeaf){
+            cLeafNode<T>* leafNode = dynamic_cast<cLeafNode<T>*>(current);
+            int i = 0;
+            for(; i < count; i++) {
+                cTuple<T> tempTuple = cTuple<T>((T*)leafNode->getElementPtr(i), leafNode->metadata->n1, true);
+                if(tuple.isEQ(tempTuple, leafNode->metadata->n1)){
+                    leafNode->deleteTuple(i);
+                    needToMerge = true;
+                    break;
+                }
+            }
+            if(i == count){
+                return false;
+            }
+        }
+    }
+    //turn off needToMerge, when no changes need to be made, by changes we mean merging of nodes or fixing ranges in inner nodes
+    while(!stack.isEmpty() && needToMerge){
+        int position = 0;
+        cNode<T>* current = stack.pop(position);
+        bool isLeaf = current->isLeafNode();
+        int count = current->getCount();
+
+        cInnerNode<T>* parent = stack.isEmpty() ? nullptr : dynamic_cast<cInnerNode<T>*>(stack.peek());
+        if(isLeaf){
+            cLeafNode<T>* leafNode = dynamic_cast<cLeafNode<T>*>(current);
+            count = leafNode->getCount();
+            //Step 1: First check if leafNode is root, in that case no borrowing or merging can occur
+            if(parent == nullptr){
+                needToMerge = false;
+                break;
+            }
+            //Step 2: If not root and underflowed, try borrowing or merging
+            else if (count < leafNode->metadata->halfLeafNode){
+                //now I need to try borrowing from siblings, if not possible, merge
+                int parentCount = parent->getCount();
+                bool rightPresent =  parentCount-1 > position ? 1 : 0;
+                bool borrowed = false;
+                //borrow from right
+                if(rightPresent){
+                    cLeafNode<T>* sibling = dynamic_cast<cLeafNode<T>*>(parent->getChild(position + 1));
+                    if(sibling->getCount() > sibling->metadata->halfLeafNode){
+                        //save tuple from sibling, insert it into current, remove it from sibling
+                        cTuple<T> borrowedTuple = cTuple<T>((T*)sibling->getElementPtr(0), sibling->metadata->n, true);
+                        leafNode->insertTuple(&borrowedTuple);
+                        sibling->deleteTuple(0);
+                        //update ranges of sibling and current
+                        parent->adjustRange(position + 1);
+                        parent->adjustRange(position);
+                        borrowed = true;
+                    }
+                }
+                //borrow from left
+                if(!borrowed && position > 0){
+                    cLeafNode<T>* sibling = dynamic_cast<cLeafNode<T>*>(parent->getChild(position - 1));
+                    if(sibling->getCount() > sibling->metadata->halfLeafNode){
+                        //save tuple from sibling, insert it into current, remove it from sibling
+                        cTuple<T> borrowedTuple = cTuple<T>((T*)sibling->getElementPtr(sibling->getCount()-1), sibling->metadata->n, true);
+                        leafNode->insertTuple(&borrowedTuple);
+                        sibling->deleteTuple(sibling->getCount()-1);
+                        //update ranges of sibling and current
+                        parent->adjustRange(position - 1);
+                        parent->adjustRange(position);
+                        borrowed = true;
+                    }
+                }
+                if(!borrowed){
+                    if(rightPresent){
+                        //merge with right sibling
+                        current->mergeRight(position, parent);   
+                    }
+                    else if(position > 0){
+                        //merge with left sibling
+                        cLeafNode<T>* sibling = dynamic_cast<cLeafNode<T>*>(parent->getChild(position - 1));
+                        sibling->mergeRight(position-1, parent);   
+                    }
+                    else{
+                        throw std::overflow_error("Node underflowed");
+                    }
+                }
+                
+            }
+            //Step 3: If no merges are needed, check if ranges are correct
+            else if(parent->needAdjustment(position)){
+                parent->adjustRange(position);
+            }
+            //Step 4: If no merges are needed and ranges are correct, turn off needToMerge
+            else{
+                needToMerge = false;
+                break;
+            }
+        }
+        if(!isLeaf){
+            cInnerNode<T>* innerNode = dynamic_cast<cInnerNode<T>*>(current);
+            count = innerNode->getCount();
+            //check for merge needs
+            //Step 1: First check if innerNode is root and underflowed to 1 range, in that case delete it and make leafNode root
+            //TODO
+            if(parent == nullptr){
+                //If we are at root and it underflowe
+                if(count == 1){
+                    this->root = innerNode->passDown();
+                    delete innerNode;
+                }
+                needToMerge = false;
+                break;
+            }
+            //Step 2: If underflowed, try borrowing or merging
+            else if(count < innerNode->metadata->halfInnerNode) {
+                //TODO: do exactly the same thing as with leaf nodes, with inner nodes, 
+                //      we still need to borrow and merge after it is possible, so it should be no different
+
+                int parentCount = parent->getCount();
+                bool rightPresent =  parentCount-1 > position ? 1 : 0;
+                bool borrowed = false;
+                //borrow from right
+                if(rightPresent){
+                    borrowed = innerNode->borrowFromRight(position, parent);
+                }
+                //borrow from left
+                if(!borrowed && position > 0){
+                    borrowed = innerNode->borrowFromLeft(position, parent);
+                }
+                if(!borrowed){
+                    if(rightPresent){
+                        //merge with right sibling
+                        current->mergeRight(position, parent);   
+                    }
+                    else if (position > 0){
+                        //merge with left sibling
+                        cInnerNode<T>* sibling = dynamic_cast<cInnerNode<T>*>(parent->getChild(position - 1));
+                        sibling->mergeRight(position-1, parent);   
+                    }
+                    else{
+                        throw std::overflow_error("Node underflowed");
+                    }
+                }
+                //Step 3: If no merges are needed, check if ranges are correct (If step 2 ran, adjustment is included in it)
+                else if(parent->needAdjustment(position)){
+                    parent->adjustRange(position);
+                }
+                //Step 4: If no merges are needed and ranges are correct, turn off needToMerge
+                else{
+                    needToMerge = false;
+                    break;
+                }
+            }            
+            
+        }
+    }
+    return true;
+}
+
 template<typename T>
 int cBpTree<T>::pointSearch(cTuple<T>& tuple) {
     cNode<T>* current = this->root;
@@ -575,10 +769,11 @@ int cBpTree<T>::searchRangeNoAlloc(cTuple<T>& tupleLow, cTuple<T>& tupleHigh, T*
             for(; i < count; i++) {
                 cTuple<T> tupLowLeaf = cTuple<T> ((T*)currentLeaf->getElementPtr(i), currentLeaf->metadata->n1, true);
                 if(tupLowLeaf.isGEQT(tupleLow, indexedValues)){
-                    startTupleIx = i;
+                    
                     break;
                 }
             }
+            startTupleIx = i;
         }
         if(currentLeaf == last){
             //find first element to not copy
@@ -586,10 +781,10 @@ int cBpTree<T>::searchRangeNoAlloc(cTuple<T>& tupleLow, cTuple<T>& tupleHigh, T*
             for(; j >= 0; j--) {
                 cTuple<T> tupHighLeaf = cTuple<T> ((T*)currentLeaf->getElementPtr(j), currentLeaf->metadata->n1, true);
                 if(tupHighLeaf.isLEQT(tupleHigh, indexedValues)){
-                    endTupleIx = j;
                     break;
                 }
             }
+            endTupleIx = j;
             endReached = true;
         }
 

@@ -14,6 +14,7 @@ public:
     int setCount(int count);
     int incrementCount(int incrementBy = 1);
     virtual cNode* split(int splitNodeIndex, cNode* parent);
+    virtual cNode* mergeRight(int splitNodeIndex, cNode* parent);
     virtual void printNodes(bool printSubtree = false, int level = 0, bool includeLinks = false) {}
 
 protected:
@@ -79,3 +80,9 @@ cNode<T>* cNode<T>::split(int splitNodeIndex, cNode<T>* parent) {
     // Implementation for split method
     return nullptr;
 }
+template<typename T>
+cNode<T>* cNode<T>::mergeRight(int mergeNodeIndex, cNode<T>* parent) {
+    // Implementation for merge method
+    return nullptr;
+}
+

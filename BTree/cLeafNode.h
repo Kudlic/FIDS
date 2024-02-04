@@ -20,7 +20,10 @@ class cLeafNode : public cNode<T> {
     char* setNodeLink(cLeafNode<T>* nodeLink);
     void printNodes(bool printSubtree = false, int level = 0, bool includeLinks = false) override;
     int insertTuple(cTuple<T>* tuple);
+    int deleteTuple(cTuple<T>* tuple);
+    int deleteTuple(int position);
     cNode<T>* split(int splitNodeIndex, cNode<T>* parent) override;
+    cNode<T>* mergeRight(int posInParent, cNode<T>* parent) override;
 };
 
 template<typename T>
@@ -135,6 +138,60 @@ int cLeafNode<T>::insertTuple(cTuple<T>* tuple) {
 }
 
 template<typename T>
+int cLeafNode<T>::deleteTuple(cTuple<T>* tuple) {
+    // Implementation for deleteTuple method
+    int count = this->getCount();
+    if(count == 0) { return -1; }
+    //delete from leaf node
+    //node MUST be ordered, therefore we need to find the right place to delete and memcpy all elements to the left to fill the space of deleted element
+    // space for improvement is to use binary search
+    int i = 0;
+    bool found = false;
+    for(; i < count; i++) {
+        cTuple<T> tempTuple = cTuple<T>((T*)this->getElementPtr(i), this->metadata->n1, true);
+        if(tuple->isEQ(tempTuple, this->metadata->n1)){
+            found = true;
+            break;
+        }
+    }
+    //If position to delete was found, fill space at index i
+    if(found){
+        memmove(
+            this->nData + this->metadata->nDataStartBShift + (this->metadata->nDataElementLeafSize * i), 
+            this->nData + this->metadata->nDataStartBShift + (this->metadata->nDataElementLeafSize * (i + 1)), 
+            this->metadata->nDataElementLeafSize * (count - i - 1)
+        );
+    }
+    this->decrementCount();
+    this->metadata->tupleCount--;
+    return i;
+}
+template<typename T>
+int cLeafNode<T>::deleteTuple(int position) {
+    // Implementation for deleteTuple method
+    int count = this->getCount();
+    if(count == 0 || position > count-1) { return -1; }
+    //delete from leaf node
+    //node MUST be ordered, therefore we need to find the right place to delete and memcpy all elements to the left to fill the space of deleted element
+    // space for improvement is to use binary search
+    
+    //If position to delete was found, fill space at index i
+    memset(
+        this->nData + this->metadata->nDataStartBShift + (this->metadata->nDataElementLeafSize * position), 
+        0, 
+        this->metadata->nDataElementLeafSize
+    );
+    memmove(
+        this->nData + this->metadata->nDataStartBShift + (this->metadata->nDataElementLeafSize * position), 
+        this->nData + this->metadata->nDataStartBShift + (this->metadata->nDataElementLeafSize * (position + 1)), 
+        this->metadata->nDataElementLeafSize * (count - position - 1)
+    );
+
+    this->incrementCount(-1);
+    this->metadata->tupleCount--;
+    return position;
+}
+template<typename T>
 cNode<T>* cLeafNode<T>::split(int splitNodeIndex, cNode<T>* parent) {
     // Splits the LeafNode into two LeafNodes,
     // If there is no parent node, creates a new parent node and initializes first range and sets split child pointer to it
@@ -173,4 +230,44 @@ cNode<T>* cLeafNode<T>::split(int splitNodeIndex, cNode<T>* parent) {
     second->setNodeLink(this->getNodeLink());
     this->setNodeLink(second);
     return parentNode;
+}
+
+template<typename T>
+cNode<T>* cLeafNode<T>::mergeRight(int posInParent, cNode<T>* parent){
+    // Merges right sibling,
+    // If there is no parent node, no merge occurs (only possible when leafNode is root node)
+    // If there is a parent node, merges right sibling into this node, removes right sibling from parent node and deletes right sibling amd adjusts range of this node
+    cInnerNode<T>* parentNode = dynamic_cast<cInnerNode<T>*>(parent);
+
+    if(parent == nullptr){
+        return nullptr;
+    }
+    int parentCount = parentNode->getCount();
+    if(parentCount == posInParent+1){
+        throw std::invalid_argument("Merge node index is last element of parent node, merge is not possible");
+    }
+    cLeafNode<T>* sibling = dynamic_cast<cLeafNode<T>*>(parentNode->getChild(posInParent + 1));
+    int count = this->getCount();
+    int countSibling = sibling->getCount();
+    if(count + countSibling > this->metadata->maxLeafNodeElements){
+        throw std::invalid_argument("Merge is not possible, nodes have too many elements");
+    }
+    //copy elements from sibling to this node
+    memcpy(
+        this->nData + this->metadata->nDataStartBShift + (this->metadata->nDataElementLeafSize * count), 
+        sibling->nData + this->metadata->nDataStartBShift, 
+        this->metadata->nDataElementLeafSize * countSibling
+    );
+    //set count of this node
+    this->incrementCount(countSibling);
+
+    //remove sibling from parent node
+    parentNode->deleteElement(posInParent + 1);
+
+    //set node link of this node
+    this->setNodeLink(sibling->getNodeLink());
+    parentNode->adjustRange(posInParent);
+    //delete sibling node
+    delete sibling;
+    return parent;
 }
