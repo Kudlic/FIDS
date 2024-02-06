@@ -21,6 +21,7 @@ Only arrays should be used.
 #include "cLeafNode.h"
 #include "cInnerNode.h"
 #include "cStack.h"
+#include "cBpTreeIterator.h"
 #include <stdlib.h>
 #include <math.h>
 //DONE list:
@@ -62,8 +63,10 @@ public:
     int searchRange(cTuple<T>& tupleLow, cTuple<T>& tupleHigh, T*& resultData, int& allocatedCount, bool printData = false);
     int searchPoint(cTuple<T>& tuple, T*& resultData, int& allocatedCount, bool printData = false);
     int searchRangeNoAlloc(cTuple<T>& tupleLow, cTuple<T>& tupleHigh, T*& resultData, bool printData = false);
+    cBpTreeIterator<T>* searchRangeIterator(cTuple<T>& tupleLow, cTuple<T>& tupleHigh);
     void printBpTree();
     void printMetadata();
+
 };
 
 template<typename T>
@@ -815,6 +818,91 @@ int cBpTree<T>::searchRangeNoAlloc(cTuple<T>& tupleLow, cTuple<T>& tupleHigh, T*
         }
     }
     return resultCount;
+}
+template<typename T>
+cBpTreeIterator<T>* cBpTree<T>::searchRangeIterator(cTuple<T>& tupleLow, cTuple<T>& tupleHigh){
+    int resultCount = 0;
+    int indexedValues = this->metadata->n1;
+
+    if(tupleLow.isGT(tupleHigh)){
+        return nullptr;
+    }
+
+    cNode<T>* first = this->root;
+    cNode<T>* last = this->root;        
+    int indexFirst = -1;
+    int indexLast = -1;
+
+    //Now find first leaf node, search until Leaf node is reached
+    while(first != nullptr && indexFirst == -1){
+        bool isLeaf = first->isLeafNode();
+        int count = first->getCount();
+        if(isLeaf){
+            //find index of first element to copy
+            cLeafNode<T>* leafNode = dynamic_cast<cLeafNode<T>*>(first);
+            int i = 0;
+            for(; i < count; i++) {
+                cTuple<T> tupleTemp = cTuple<T> ((T*)leafNode->getElementPtr(i), first->metadata->n1, true);
+                if(tupleTemp.isGEQT(tupleLow, indexedValues)){
+                    indexFirst = i;
+                    break;
+                }
+            }
+        }
+        else{
+            cInnerNode<T>* innerNode = dynamic_cast<cInnerNode<T>*>(first);
+            int i = 0;
+            for(; i < count; i++) {
+                cTuple<T> tupHighTree = cTuple<T> ((T*)innerNode->getTupleHighPtr(i), innerNode->metadata->n1, true);
+                //Easy to find last interval it fits in, just HigherEQthan, because lower bound can be lower than first element
+                if(tupHighTree.isGEQT(tupleLow, indexedValues)){
+                    first = innerNode->getChild(i);
+                    break;
+                }
+            }
+            if(i == count){
+                first = nullptr;
+                indexFirst = 0;
+            }
+        }
+    }
+    //Now find last leaf node, search until Leaf node is reached
+    while(last != nullptr && indexLast == -1){
+        bool isLeaf = last->isLeafNode();
+        int count = last->getCount();
+        if(isLeaf){
+            //find index of first element to not copy
+            cLeafNode<T>* leafNode = dynamic_cast<cLeafNode<T>*>(last);
+            int j = 0;
+            for(; j < count; j++) {
+                cTuple<T> tupleTemp = cTuple<T> ((T*)leafNode->getElementPtr(j), last->metadata->n1, true);
+                if(tupleTemp.isGT(tupleHigh, indexedValues)){
+                    indexLast = j;
+                    break;
+                }
+            }
+        }
+        else{//if there is no tuple that is not supposed to be included, we will set inner node tu nullptr,
+            cInnerNode<T>* innerNode = dynamic_cast<cInnerNode<T>*>(last);
+            int j = 0;
+            int count = last->getCount();
+            //check if tuple is higher than last tuple in inner node
+            for(; j < count; j++) {
+                cTuple<T> tupHighTree = cTuple<T> ((T*)innerNode->getTupleHighPtr(j), innerNode->metadata->n1, true);
+                if(tupHighTree.isGT(tupleHigh, indexedValues)){
+                    last = innerNode->getChild(j);
+                    break;
+                }
+            }
+            if(j == count){
+                last = nullptr;
+                indexLast = 0;
+                break;
+            }
+        }
+    }
+    return new cBpTreeIterator<T>(dynamic_cast<cLeafNode<T>*>(first), dynamic_cast<cLeafNode<T>*>(last), indexFirst, indexLast, this->metadata);
+
 }
 template<typename T>
 void cBpTree<T>::printBpTree(){

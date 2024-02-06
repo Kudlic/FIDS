@@ -188,6 +188,86 @@ void deleteTestCaseRev(){
         tree.printBpTree();
     }
 }
+void iteratorTestCase(){
+    cBpTree<int> tree(2, 1, 1, 5, 5);
+    // Insert some data
+    srand(170400);
+    int records = 50;
+
+    cTuple maximum = cTuple(new int[2]{70, -1}, 2);
+
+    auto t1 = std::chrono::high_resolution_clock::now();
+    for(int i = 0; i < records; i++) {
+        cTuple tuple(new int[2]{(rand()% maximum.attributes[0])+20, i}, 2);
+        if(!tree.insert(tuple)){
+            printf("Insertion failed!\n");
+            break;
+        }
+    }
+    auto t2 = std::chrono::high_resolution_clock::now();
+    std::chrono::duration<double> time_span = std::chrono::duration_cast<std::chrono::duration<double>>(t2 - t1);
+    if(records <= 1000)tree.printBpTree();
+    //tree.printMetadata();
+    printf("BpTree MB: %.3f\n",BytesToMB(tree.getBpTreeBytes()));
+
+    cTuple<int> searchTup2 = cTuple(new int[1]{2}, 1);
+    cTuple<int> searchTup20 = cTuple(new int[1]{20}, 1);
+    cTuple<int> searchTup25 = cTuple(new int[1]{25}, 1);
+    cTuple<int> searchTup40 = cTuple(new int[1]{40}, 1);
+    cTuple<int> searchTup57 = cTuple(new int[1]{57}, 1);
+    cTuple<int> searchTup59 = cTuple(new int[1]{59}, 1);
+    cTuple<int> searchTup70 = cTuple(new int[1]{70}, 1);
+    cTuple<int> searchTup88 = cTuple(new int[1]{88}, 1);
+    cTuple<int> searchTup90 = cTuple(new int[1]{90}, 1);
+
+    cBpTreeIterator<int>* iterator = nullptr;
+    //both left outside
+    printf("Iterator test 2-20\n");
+    iterator = tree.searchRangeIterator(searchTup2, searchTup20);
+    while(iterator->hasNext()){
+        cTuple<int>* tuple = iterator->next();
+        tuple->printTuple();
+    }
+    delete iterator;
+
+    //left outside, right present
+    printf("Iterator test 20-25\n");
+    iterator = tree.searchRangeIterator(searchTup20, searchTup25);
+    while(iterator->hasNext()){
+        cTuple<int>* tuple = iterator->next();
+        tuple->printTuple();
+    }
+    delete iterator;
+
+    //left present, right present
+    printf("Iterator test 25-57\n");
+
+    iterator = tree.searchRangeIterator(searchTup25, searchTup57);
+    while(iterator->hasNext()){
+        cTuple<int>* tuple = iterator->next();
+        tuple->printTuple();
+    }
+    delete iterator;
+
+    //left present, right outside
+    printf("Iterator test 88-90\n");
+    iterator = tree.searchRangeIterator(searchTup88, searchTup90);
+    while(iterator->hasNext()){
+        cTuple<int>* tuple = iterator->next();
+        tuple->printTuple();
+    }
+    delete iterator;
+
+    //both right outside
+    printf("Iterator test 90-90\n");
+    iterator = tree.searchRangeIterator(searchTup90, searchTup90);
+    while(iterator->hasNext()){
+        cTuple<int>* tuple = iterator->next();
+        tuple->printTuple();
+    }
+    delete iterator;
+
+}
 /*
 void largeTestCase(){
     //TESTCASE 3 
@@ -445,6 +525,7 @@ void benchmark(int* records, int recordsSize, int queries, int n1, int n2, int n
 }
 
 int main() {
+    iteratorTestCase();
     deleteTestCase();
     deleteTestCaseRev();
     //largeTestCase();

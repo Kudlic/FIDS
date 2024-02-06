@@ -47,6 +47,7 @@ private:
     template<typename T> friend class cNode;
     template<typename T> friend class cLeafNode;
     template<typename T> friend class cInnerNode;
+    template<typename T> friend class cBpTreeIterator;
 };
 
 template<typename TT>

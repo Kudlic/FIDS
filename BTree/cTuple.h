@@ -5,6 +5,7 @@ template<typename T>
 class cTuple {
 public:
     cTuple(int n);
+    cTuple(int n, bool isWrapper);
     cTuple(T* attributes, int n, bool isWrapper = 0);
     ~cTuple();
     void setTuple(T* attributes, int n);
@@ -17,6 +18,8 @@ public:
     bool isTupleBetween(cTuple<T>& tuple1, cTuple<T>& tuple2, int n = -1);
     float getTupleDistance(cTuple<T>& tuple, int n = -1);
     float getTupleRangeDistance(cTuple<T>& tuple1, cTuple<T>& tuple2, int n = -1);
+    T* getAttributes() { return attributes; }
+    int getN() { return n; }
     
     T* attributes;
     int n; // Number of attributes
@@ -27,6 +30,15 @@ template<typename T>
 cTuple<T>::cTuple(int n) : n(n), isWrapper(0) {
     attributes = new T[n];
 }
+template<typename T>
+cTuple<T>::cTuple(int n, bool isWrapper) : n(n), isWrapper(isWrapper) {
+    if(!isWrapper){
+        attributes = new T[n];
+    }
+    else{
+        attributes = nullptr;
+    }
+}   
 
 template<typename T>
 cTuple<T>::cTuple(T* attributes, int n, bool isWrapper) : attributes(attributes), n(n), isWrapper(isWrapper) {}
