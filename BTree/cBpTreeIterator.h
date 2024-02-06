@@ -67,8 +67,13 @@ cTuple<T>* cBpTreeIterator<T>::next(){
 template<typename T>
 int cBpTreeIterator<T>::skip(int count){
     int skipped = 0;
-    while(skipped < count || count == -1){
-        if(index >= currentMaxIndex && currentNode != nullptr){
+    while((skipped < count || count == -1) && hasNext()){
+        if(currentNode == nullptr){
+            return skipped;
+        }
+        index++;
+        skipped++;
+        if(index >= currentMaxIndex && currentNode != endNode){
             currentNode = currentNode->getNodeLink();
             if(currentNode == endNode){
                 currentMaxIndex = endIndex;
@@ -78,11 +83,6 @@ int cBpTreeIterator<T>::skip(int count){
             }
             index = 0;
         }
-        else if(currentNode == nullptr){
-            return skipped;
-        }
-        index++;
-        skipped++;
     }
     return skipped;
 }

@@ -222,7 +222,9 @@ void iteratorTestCase(){
 
     cBpTreeIterator<int>* iterator = nullptr;
     //both left outside
-    printf("Iterator test 2-20\n");
+    iterator = tree.searchRangeIterator(searchTup2, searchTup20);
+    printf("Iterator test 2-20 skip count: %d\n", iterator->skip(-1));
+    delete iterator;
     iterator = tree.searchRangeIterator(searchTup2, searchTup20);
     while(iterator->hasNext()){
         cTuple<int>* tuple = iterator->next();
@@ -231,7 +233,9 @@ void iteratorTestCase(){
     delete iterator;
 
     //left outside, right present
-    printf("Iterator test 20-25\n");
+    iterator = tree.searchRangeIterator(searchTup20, searchTup25);
+    printf("Iterator test 20-25 skip count: %d\n", iterator->skip(-1));
+    delete iterator;
     iterator = tree.searchRangeIterator(searchTup20, searchTup25);
     while(iterator->hasNext()){
         cTuple<int>* tuple = iterator->next();
@@ -240,8 +244,9 @@ void iteratorTestCase(){
     delete iterator;
 
     //left present, right present
-    printf("Iterator test 25-57\n");
-
+    iterator = tree.searchRangeIterator(searchTup25, searchTup57);
+    printf("Iterator test 25-57 skip count: %d\n", iterator->skip(-1));
+    delete iterator;
     iterator = tree.searchRangeIterator(searchTup25, searchTup57);
     while(iterator->hasNext()){
         cTuple<int>* tuple = iterator->next();
@@ -250,7 +255,9 @@ void iteratorTestCase(){
     delete iterator;
 
     //left present, right outside
-    printf("Iterator test 88-90\n");
+    iterator = tree.searchRangeIterator(searchTup88, searchTup90);
+    printf("Iterator test 88-90 skip count: %d\n", iterator->skip(-1));
+    delete iterator;
     iterator = tree.searchRangeIterator(searchTup88, searchTup90);
     while(iterator->hasNext()){
         cTuple<int>* tuple = iterator->next();
@@ -259,7 +266,9 @@ void iteratorTestCase(){
     delete iterator;
 
     //both right outside
-    printf("Iterator test 90-90\n");
+    iterator = tree.searchRangeIterator(searchTup90, searchTup90);
+    printf("Iterator test 90-90 skip count: %d\n", iterator->skip(-1));
+    delete iterator;
     iterator = tree.searchRangeIterator(searchTup90, searchTup90);
     while(iterator->hasNext()){
         cTuple<int>* tuple = iterator->next();
