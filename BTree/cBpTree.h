@@ -64,7 +64,7 @@ public:
     int searchPoint(cTuple<T>& tuple, T*& resultData, int& allocatedCount, bool printData = false);
     int searchRangeNoAlloc(cTuple<T>& tupleLow, cTuple<T>& tupleHigh, T*& resultData, bool printData = false);
     cBpTreeIterator<T>* searchRangeIterator(cTuple<T>& tupleLow, cTuple<T>& tupleHigh);
-    void printBpTree();
+    void printTree();
     void printMetadata();
 
 };
@@ -905,7 +905,7 @@ cBpTreeIterator<T>* cBpTree<T>::searchRangeIterator(cTuple<T>& tupleLow, cTuple<
 
 }
 template<typename T>
-void cBpTree<T>::printBpTree(){
+void cBpTree<T>::printTree(){
     this->root->printNodes(true, 0);
 }
 template<typename T>

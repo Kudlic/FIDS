@@ -5,6 +5,8 @@
 template<typename T>
 class cBpTreeIterator {
     private:
+    //TODOMBY: save state and set it
+        cLeafNode<T>* startNode;
         cLeafNode<T>* currentNode;
         cLeafNode<T>* endNode;
         int index;
@@ -13,15 +15,17 @@ class cBpTreeIterator {
         cTreeMetadata<T>* metadata;
         cTuple<T>* resultContainer;
     public: 
-        cBpTreeIterator(cLeafNode<T>* currentNode, cLeafNode<T>* endNode, int index, int endIndex, cTreeMetadata<T>* metadata);
+        cBpTreeIterator(cLeafNode<T>* startNode, cLeafNode<T>* endNode, int index, int endIndex, cTreeMetadata<T>* metadata);
         ~cBpTreeIterator();
         bool hasNext();
         cTuple<T>* next();
         int skip(int count);
+        bool reset();
 };
 template<typename T>
-cBpTreeIterator<T>::cBpTreeIterator(cLeafNode<T>* currentNode, cLeafNode<T>* endNode, int index, int endIndex, cTreeMetadata<T>* metadata):
-    currentNode(currentNode), 
+cBpTreeIterator<T>::cBpTreeIterator(cLeafNode<T>* startNode, cLeafNode<T>* endNode, int index, int endIndex, cTreeMetadata<T>* metadata):
+    startNode(startNode), 
+    currentNode(startNode),
     endNode(endNode), 
     index(index), 
     endIndex(endIndex),
@@ -85,4 +89,16 @@ int cBpTreeIterator<T>::skip(int count){
         }
     }
     return skipped;
+}
+template<typename T>
+bool cBpTreeIterator<T>::reset(){
+    currentNode = startNode;
+    index = 0;
+    if(currentNode == endNode){
+        currentMaxIndex = endIndex;
+    }
+    else{
+        currentMaxIndex = currentNode->getCount();
+    }
+    return true;
 }

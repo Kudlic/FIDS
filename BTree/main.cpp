@@ -35,7 +35,7 @@ void smallTestCase(){
     }
     auto t2 = std::chrono::high_resolution_clock::now();
     std::chrono::duration<double> time_span = std::chrono::duration_cast<std::chrono::duration<double>>(t2 - t1);
-    if(records <= 1000)tree.printBpTree();
+    if(records <= 1000)tree.printTree();
     tree.printMetadata();
     printf("BpTree MB: %.3f\n",BytesToMB(tree.getBpTreeBytes()));
 
@@ -144,7 +144,7 @@ void deleteTestCase(){
     }
     auto t2 = std::chrono::high_resolution_clock::now();
     std::chrono::duration<double> time_span = std::chrono::duration_cast<std::chrono::duration<double>>(t2 - t1);
-    if(records <= 1000)tree.printBpTree();
+    if(records <= 1000)tree.printTree();
     //tree.printMetadata();
     printf("BpTree MB: %.3f\n",BytesToMB(tree.getBpTreeBytes()));
 
@@ -154,7 +154,7 @@ void deleteTestCase(){
         printf("Deleting: ");
         tuple.printTuple();
         tree.remove(tuple);
-        tree.printBpTree();
+        tree.printTree();
     }
 }
 void deleteTestCaseRev(){
@@ -175,7 +175,7 @@ void deleteTestCaseRev(){
     }
     auto t2 = std::chrono::high_resolution_clock::now();
     std::chrono::duration<double> time_span = std::chrono::duration_cast<std::chrono::duration<double>>(t2 - t1);
-    if(records <= 1000)tree.printBpTree();
+    if(records <= 1000)tree.printTree();
     //tree.printMetadata();
     printf("BpTree MB: %.3f\n",BytesToMB(tree.getBpTreeBytes()));
 
@@ -185,7 +185,7 @@ void deleteTestCaseRev(){
         printf("Deleting: ");
         tuple.printTuple();
         tree.remove(tuple);
-        tree.printBpTree();
+        tree.printTree();
     }
 }
 void iteratorTestCase(){
@@ -206,7 +206,7 @@ void iteratorTestCase(){
     }
     auto t2 = std::chrono::high_resolution_clock::now();
     std::chrono::duration<double> time_span = std::chrono::duration_cast<std::chrono::duration<double>>(t2 - t1);
-    if(records <= 1000)tree.printBpTree();
+    if(records <= 1000)tree.printTree();
     //tree.printMetadata();
     printf("BpTree MB: %.3f\n",BytesToMB(tree.getBpTreeBytes()));
 
@@ -534,9 +534,9 @@ void benchmark(int* records, int recordsSize, int queries, int n1, int n2, int n
 }
 
 int main() {
-    iteratorTestCase();
+    //iteratorTestCase();
     deleteTestCase();
-    deleteTestCaseRev();
+    //deleteTestCaseRev();
     //largeTestCase();
     
     /*
