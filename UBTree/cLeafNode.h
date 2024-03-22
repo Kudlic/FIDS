@@ -13,21 +13,20 @@ class cLeafNode : public cNode<T> {
     public:
     // Implementation for leaf node
     // Leaf nodes have mData structure as follows: int isLeaf, int count, T* data 
-    cLeafNode(cTreeMetadata<T> * metadata);
+    cLeafNode(cTreeMetadata * metadata);
     ~cLeafNode() override;
     char* getElementPtr(int index);
     cLeafNode<T>* getNodeLink();
     char* setNodeLink(cLeafNode<T>* nodeLink);
-    void printNodes(bool printSubtree = false, int level = 0, bool includeLinks = false) override;
-    int insertTuple(cTuple<T>* tuple);
-    int deleteTuple(cTuple<T>* tuple);
-    int deleteTuple(int position);
+    //void printNodes(bool printSubtree = false, int level = 0, bool includeLinks = false) override;
+    int insertZAddr(char* data, cZAddrUtils* zTools);
+    int deleteZAddr(char* data, cZAddrUtils* zTools);
     cNode<T>* split(int splitNodeIndex, cNode<T>* parent) override;
     cNode<T>* mergeRight(int posInParent, cNode<T>* parent) override;
 };
 
 template<typename T>
-cLeafNode<T>::cLeafNode(cTreeMetadata<T> * metadata) : cNode<T>(metadata) {
+cLeafNode<T>::cLeafNode(cTreeMetadata * metadata) : cNode<T>(metadata) {
     this->nData = new char[metadata->nDataSizeLeaf];
     this->setCount(0);
     this->setLeafNode(true);
@@ -60,48 +59,7 @@ char* cLeafNode<T>::setNodeLink(cLeafNode<T>* nodeLink) {
 }
 
 template<typename T>
-void cLeafNode<T>::printNodes(bool printSubtree, int level, bool includeLinks) {
-    //print tuples in leaf node, format: [tuple1, tuple2, ...], where tuple is [attr1, attr2, ...]
-    int count = this->getCount();
-    if(printSubtree){
-        for(int i = 0; i < level; i++){
-            printf("_  ");
-        }
-        printf("LeafNode: ");
-    }
-    printf("[");
-    for(int i = 0; i < count; i++){
-        printf("[");
-        for(int j = 0; j < this->metadata->n; j++){
-            printf("%d", *reinterpret_cast<T*>(this->nData+ this->metadata->nDataStartBShift + (this->metadata->nDataElementLeafSize * i) + j*this->metadata->attrSize));
-            if(j < this->metadata->n - 1){
-                printf(", ");
-            }
-        }
-        printf("]");
-        if(i < count - 1){
-            printf(", ");
-        }
-    }
-    printf("]");
-    //print node link
-    if(includeLinks){
-        printf(" -> ");
-        if(this->getNodeLink() != nullptr){
-            this->getNodeLink()->printNodes(false, 0);
-            printf("\n");
-        }
-        else{
-            printf("nullptr\n");
-        }
-    }
-    else{
-        printf("\n");
-    }
-}
-
-template<typename T>
-int cLeafNode<T>::insertTuple(cTuple<T>* tuple) {
+int cLeafNode<T>::insertZAddr(char* data, cZAddrUtils* zTools) {
     // Implementation for insertTuple method
     int count = this->getCount();
     if(count >= this->metadata->maxLeafNodeElements) { return -1; }
@@ -111,8 +69,7 @@ int cLeafNode<T>::insertTuple(cTuple<T>* tuple) {
     int i = 0;
     bool found = false;
     for(; i < count; i++) {
-        cTuple<T> tempTuple = cTuple<T>((T*)this->getElementPtr(i), this->metadata->n1, true);
-        if(tuple->isLT(tempTuple)){
+        if(zTools->isZAddrLT(data, this->getElementPtr(i))){
             //i--;//go back, because we want to insert before this element
             found = true;
             break;
@@ -129,7 +86,7 @@ int cLeafNode<T>::insertTuple(cTuple<T>* tuple) {
     //insert tuple at index i
     memcpy(
         this->nData + this->metadata->nDataStartBShift + (this->metadata->nDataElementLeafSize * i), 
-        tuple->attributes, 
+        data, 
         this->metadata->nDataElementLeafSize
     );
     this->incrementCount();
@@ -138,18 +95,14 @@ int cLeafNode<T>::insertTuple(cTuple<T>* tuple) {
 }
 
 template<typename T>
-int cLeafNode<T>::deleteTuple(cTuple<T>* tuple) {
+int cLeafNode<T>::deleteZAddr(char* data, cZAddrUtils* zTools) {
     // Implementation for deleteTuple method
     int count = this->getCount();
     if(count == 0) { return -1; }
-    //delete from leaf node
-    //node MUST be ordered, therefore we need to find the right place to delete and memcpy all elements to the left to fill the space of deleted element
-    // space for improvement is to use binary search
     int i = 0;
     bool found = false;
     for(; i < count; i++) {
-        cTuple<T> tempTuple = cTuple<T>((T*)this->getElementPtr(i), this->metadata->n1, true);
-        if(tuple->isEQ(tempTuple, this->metadata->n1)){
+        if(zTools->isZAddrEQ(data, this->getElementPtr(i))){
             found = true;
             break;
         }
@@ -161,37 +114,13 @@ int cLeafNode<T>::deleteTuple(cTuple<T>* tuple) {
             this->nData + this->metadata->nDataStartBShift + (this->metadata->nDataElementLeafSize * (i + 1)), 
             this->metadata->nDataElementLeafSize * (count - i - 1)
         );
-        this->decrementCount();
+        this->incrementCount(-1);
         this->metadata->tupleCount--;
         return i;
     }
     return -1;
 }
-template<typename T>
-int cLeafNode<T>::deleteTuple(int position) {
-    // Implementation for deleteTuple method
-    int count = this->getCount();
-    if(count == 0 || position > count-1) { return -1; }
-    //delete from leaf node
-    //node MUST be ordered, therefore we need to find the right place to delete and memcpy all elements to the left to fill the space of deleted element
-    // space for improvement is to use binary search
-    
-    //If position to delete was found, fill space at index i
-    memset(
-        this->nData + this->metadata->nDataStartBShift + (this->metadata->nDataElementLeafSize * position), 
-        0, 
-        this->metadata->nDataElementLeafSize
-    );
-    memmove(
-        this->nData + this->metadata->nDataStartBShift + (this->metadata->nDataElementLeafSize * position), 
-        this->nData + this->metadata->nDataStartBShift + (this->metadata->nDataElementLeafSize * (position + 1)), 
-        this->metadata->nDataElementLeafSize * (count - position - 1)
-    );
 
-    this->incrementCount(-1);
-    this->metadata->tupleCount--;
-    return position;
-}
 template<typename T>
 cNode<T>* cLeafNode<T>::split(int splitNodeIndex, cNode<T>* parent) {
     // Splits the LeafNode into two LeafNodes,

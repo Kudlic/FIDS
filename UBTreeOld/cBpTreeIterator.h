@@ -13,10 +13,10 @@ class cBpTreeIterator {
         int index;
         int endIndex;
         int currentMaxIndex;
-        cTreeMetadata* metadata;
+        cTreeMetadata<T>* metadata;
         cTuple<T>* resultContainer;
     public: 
-        cBpTreeIterator(cLeafNode<T>* startNode, cLeafNode<T>* endNode, int index, int endIndex, cTreeMetadata* metadata);
+        cBpTreeIterator(cLeafNode<T>* startNode, cLeafNode<T>* endNode, int index, int endIndex, cTreeMetadata<T>* metadata);
         ~cBpTreeIterator();
         bool hasNext();
         cTuple<T>* next();
@@ -24,7 +24,7 @@ class cBpTreeIterator {
         bool reset();
 };
 template<typename T>
-cBpTreeIterator<T>::cBpTreeIterator(cLeafNode<T>* startNode, cLeafNode<T>* endNode, int index, int endIndex, cTreeMetadata* metadata):
+cBpTreeIterator<T>::cBpTreeIterator(cLeafNode<T>* startNode, cLeafNode<T>* endNode, int index, int endIndex, cTreeMetadata<T>* metadata):
     startNode(startNode), 
     currentNode(startNode),
     endNode(endNode), 

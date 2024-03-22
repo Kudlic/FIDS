@@ -18,20 +18,17 @@ float BytesToMB(int bytes){
 
 void smallTestCase(){
     //TESTCASE 3 
-    cBpTree<int, int> tree(2, 8, 8);
+    cBpTree<int, int> tree(2, 5, 5);
 
     // Insert some data
     srand(170400);
-    cTuple<int> * tupleContainer = new cTuple<int>(2, true);
+    cTuple<int> * tupleContainer;
 
-    int jMax, iMax;
-    iMax = 8;
-    jMax = 8;
-    int recordsNum = iMax * jMax;
+    int recordsNum = 256 * 256;
 
     auto t1 = std::chrono::high_resolution_clock::now();
-    for(int i = 0; i < iMax; i++) {
-        for(int j = 0; j < jMax; j++) {
+    for(int i = 0; i < 256; i++) {
+        for(int j = 0; j < 256; j++) {
             int* data = new int[2]{i, j};
             tupleContainer->setTuple(data, 2);
             if(!tree.insert(*tupleContainer)){
@@ -48,23 +45,20 @@ void smallTestCase(){
 
     printf("Insert BpTable done. Time: %.2fs, Throughput: %.2f mil. op/s.\n\n", time_span.count(), GetThroughput(recordsNum, time_span.count()));
     
-    tree.printTreeTuples();
-    tree.printTreeHex();
     //memory clean up
 }
 
 void zAddressTranslationTest(){
     cBpTree<int, int> tree(2, 5, 5);
-    cTuple<int> tuple1 = cTuple<int>(new int[2]{0x7, 0x1}, 2);
+    cTuple<int> tuple1 = cTuple<int>(new int[2]{0xFF, 0x00}, 2);
 
-    char * zAddress = nullptr;
-    tree.getZTools()->transformDataToZAddress((char*)tuple1.getAttributes(), zAddress);
-    cTuple<int> tuple2 = cTuple<int>((int*)zAddress, tree.getMetadata()->n, true);
+    char * zAddress;
+    tree.transformDataToZAddress(tuple1.getAttributes(), zAddress);
+    cTuple<char> tuple2 = cTuple<char>(zAddress, tree.getMetadata()->zAddressBytes, true);
 
-    char *unZAddressed = nullptr; // Change the declaration to reference type
-    tree.getZTools()->transformZAddressToData((char*)tuple2.getAttributes(), unZAddressed); // Use the address of operator to pass the reference
-
-    cTuple<int> tuple3 = cTuple<int>((int*)unZAddressed, 2, true);
+    int * unZAddressed;
+    tree.transformZAddressToData(tuple2.getAttributes(), unZAddressed);
+    cTuple<int> tuple3 = cTuple<int>(unZAddressed, 2);
 
     tuple1.printTupleHex();
     tuple2.printTupleHex();

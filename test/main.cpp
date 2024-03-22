@@ -1,9 +1,9 @@
-/*#include <iostream>
+#include <iostream>
 
 class BlockProcessor {
 private:
     int blockSize;
-    typedef void (BlockProcessor::*BlockFunc)(); // Function pointer type
+    typedef bool (BlockProcessor::*BlockFunc)(bool); // Function pointer type
 
 public:
     BlockProcessor(int size) : blockSize(size) {
@@ -25,7 +25,7 @@ public:
     // Call the appropriate function based on block size
     void processBlock() {
         if (blockFuncPtr) {
-            (this->*blockFuncPtr)();
+            (this->*blockFuncPtr)(true);
         } else {
             std::cerr << "No function pointer set\n";
         }
@@ -33,11 +33,17 @@ public:
 
 private:
     BlockFunc blockFuncPtr; // Function pointer member
-    void block1() {std::cout << "Processing block size 1\n";}
-    void block2() {std::cout << "Processing block size 2\n";}
-    void block4() {std::cout << "Processing block size 4\n";}
-    void block8() {std::cout << "Processing block size 8\n";}
+    bool block1(bool placeholder = 1);
+    bool block2(bool placeholder = 1);
+    bool block4(bool placeholder = 1) {std::cout << "Processing block size 4\n";}
+    bool block8(bool placeholder = 1) {std::cout << "Processing block size 8\n";}
 };
+bool BlockProcessor::block1(bool placeholder){
+    std::cout << "Processing block size 1\n";
+}
+bool BlockProcessor::block2(bool placeholder){
+    std::cout << "Processing block size 2\n";
+}
 
 class Info{
     public:
@@ -120,7 +126,8 @@ int main() {
 
 
     return 0;
-}*/
+}
+/*
 #include <iostream>
 #include <iomanip> // for std::hex
 
@@ -136,3 +143,5 @@ int main() {
 
     return 0;
 }
+
+*/

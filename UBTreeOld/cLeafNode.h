@@ -13,7 +13,7 @@ class cLeafNode : public cNode<T> {
     public:
     // Implementation for leaf node
     // Leaf nodes have mData structure as follows: int isLeaf, int count, T* data 
-    cLeafNode(cTreeMetadata * metadata);
+    cLeafNode(cTreeMetadata<T> * metadata);
     ~cLeafNode() override;
     char* getElementPtr(int index);
     cLeafNode<T>* getNodeLink();
@@ -27,7 +27,7 @@ class cLeafNode : public cNode<T> {
 };
 
 template<typename T>
-cLeafNode<T>::cLeafNode(cTreeMetadata * metadata) : cNode<T>(metadata) {
+cLeafNode<T>::cLeafNode(cTreeMetadata<T> * metadata) : cNode<T>(metadata) {
     this->nData = new char[metadata->nDataSizeLeaf];
     this->setCount(0);
     this->setLeafNode(true);

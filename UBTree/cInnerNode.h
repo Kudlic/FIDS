@@ -23,18 +23,15 @@ public:
     char* getTupleLowPtr(int index);
     char* getTupleHighPtr(int index);
     char* getElementPtr(int index);
-    //Watch out for type, must be T type tuple, 
-    bool widenHigh(int index, cTuple<T>* tuple);
-    bool widenLow(int index, cTuple<T>* tuple);
-    bool setHigh(int index, cTuple<T>* tupleHigh);
-    bool setLow(int index, cTuple<T>* tupleLow);
+    
     //Customised for zAddr to avoid bothering with tuple types
-    bool widenHighZAddr(int index, char* zAddr);
-    bool widenLowZAddr(int index, char* zAddr);
+    bool widenHighZAddr(int index, char* zAddr, cZAddrUtils *zTools);
+    bool widenLowZAddr(int index, char* zAddr, cZAddrUtils *zTools);
     bool setHighZAddr(int index, char* zAddr);
     bool setLowZAddr(int index, char* zAddr);
-    //Should work for zAddresses and tuples, works with stored data, makes T tuples and compares
+    //Should work for zAddresses and tuples, works with stored data, makes T tuples and compare EQ, which works for both zAddr and tuples
     bool needAdjustment(int index);
+    //Goes and sets range to match child's range, no comparison
     bool adjustRange(int index);
 
     bool addElement(cInnerNode<T>* child, int index = -1);
@@ -105,109 +102,38 @@ char* cInnerNode<T>::getElementPtr(int index) {
     return this->nData + this->metadata->nDataStartBShift + (index * this->metadata->nDataElementInnerSize);
 }
 
-
 template<typename T>
-bool cInnerNode<T>::widenHigh(int index, cTuple<T>* tuple) {
-    if(index < 0 || index >= this->getCount())
-        return false;
-    //If tupleHigh is lower than tuple, widen it
-    cTuple<T> tupleHigh = cTuple<T> ((T*)this->getTupleHighPtr(index), this->metadata->n, true);
-    if(tuple->isGT(tupleHigh)) {
-        {
-            memcpy(
-                this->getTupleHighPtr(index), 
-                tuple->attributes, 
-                this->metadata->zAddressBytes
-            );
-        }
-    }
-    return true;
-}
-
-template<typename T>
-bool cInnerNode<T>::widenLow(int index, cTuple<T>* tuple) {
-    if(index < 0 || index >= this->getCount())
-        return false;
-    //If tupleLow is lower than tuple, widen it
-    cTuple<T> tupleLow = cTuple<T> ((T*)this->getTupleLowPtr(index), this->metadata->n, true);
-    if(tuple->isLT(tupleLow)) {
-        {
-            memcpy(
-                this->getTupleLowPtr(index), 
-                tuple->attributes, 
-                this->metadata->zAddressBytes
-            );
-        }
-    }
-    return true;
-}
-
-template<typename T>
-bool cInnerNode<T>::setHigh(int index, cTuple<T>* tupleHigh) {
-    if(index < 0 || index >= this->getCount())
-        return false;
-    memcpy(
-        this->getTupleHighPtr(index), 
-        tupleHigh->attributes, 
-        this->metadata->zAddressBytes
-    );
-    return true;
-}
-
-template<typename T>
-bool cInnerNode<T>::setLow(int index, cTuple<T>* tupleLow) {
-    if(index < 0 || index >= this->getCount())
-        return false;
-    memcpy(
-        this->getTupleLowPtr(index), 
-        tupleLow->attributes, 
-        this->metadata->zAddressBytes
-    );
-    return true;
-}
-
-template<typename T>
-bool cInnerNode<T>::widenHighZAddr(int index, char* zAddr) {
+bool cInnerNode<T>::widenHighZAddr(int index, char* zAddr, cZAddrUtils *zTools) {
     if(index < 0 || index >= this->getCount())
         return false;
     //If tupleHigh is lower than tuple, widen it
     char* zAddrHigh = this->getTupleHighPtr(index);
-    for(int i = 0; i < this->metadata->zAddressBytes; i++){
-        if(zAddr[i] > zAddrHigh[i]){
-            memcpy( 
-                this->getTupleHighPtr(index), 
-                zAddr, 
-                this->metadata->zAddressBytes
-            );
-            break;
-        }
-        else if(zAddr[i] < zAddrHigh[i]){
-            return false;
-        }
+    if(zTools->isZAddrGT(zAddr, zAddrHigh)){
+        memcpy( 
+            this->getTupleHighPtr(index), 
+            zAddr, 
+            this->metadata->zAddressBytes
+        );
+        return true;
     }
-    return true;
+    return false;
 }
 
 template<typename T>
-bool cInnerNode<T>::widenLowZAddr(int index, char* zAddr) {
+bool cInnerNode<T>::widenLowZAddr(int index, char* zAddr, cZAddrUtils *zTools) {
     if(index < 0 || index >= this->getCount())
         return false;
     //If tupleLow is Higher than tuple, widen it
     char* zAddrLow = this->getTupleLowPtr(index);
-    for(int i = 0; i < this->metadata->zAddressBytes; i++){
-        if(zAddr[i] < zAddrLow[i]){
-            memcpy(
-                this->getTupleLowPtr(index), 
-                zAddr, 
-                this->metadata->zAddressBytes
-            );
-            break;
-        }
-        else if(zAddr[i] > zAddrLow[i]){
-            return false;
-        }
+    if(zTools->isZAddrLT(zAddr, zAddrLow)){
+        memcpy(
+            this->getTupleLowPtr(index), 
+            zAddr, 
+            this->metadata->zAddressBytes
+        );
+        return true;
     }
-    return true;
+    return false;
 }
 
 template<typename T>
@@ -268,20 +194,16 @@ bool cInnerNode<T>::adjustRange(int index) {
         cLeafNode<T>* child = dynamic_cast<cLeafNode<T>*>( this->getChild(index));
         if(child == nullptr)
             return false;
-        cTuple<T> tupleLow = cTuple<T> ((T*)child->getElementPtr(0), this->metadata->n, true);
-        cTuple<T> tupleHigh = cTuple<T> ((T*)child->getElementPtr(child->getCount()-1), this->metadata->n, true);
-        this->setLow(index, &tupleLow);
-        this->setHigh(index, &tupleHigh);
+        this->setLowZAddr(index, child->getElementPtr(0));
+        this->setHighZAddr(index, child->getElementPtr(child->getCount()-1));
         return true;
     }
     else{
         cInnerNode<T>* child = dynamic_cast<cInnerNode<T>*>( this->getChild(index));
         if(child == nullptr)
             return false;
-        cTuple<T> tupleLow = cTuple<T> ((T*)child->getTupleLowPtr(0), this->metadata->n, true);
-        cTuple<T> tupleHigh = cTuple<T> ((T*)child->getTupleHighPtr(child->getCount()-1), this->metadata->n, true);
-        this->setLow(index, &tupleLow);
-        this->setHigh(index, &tupleHigh);
+        this->setLowZAddr(index, child->getTupleLowPtr(0));
+        this->setHighZAddr(index, child->getTupleHighPtr(child->getCount()-1));
         return true;
     }
     return false;
@@ -492,51 +414,3 @@ bool cInnerNode<T>::borrowFromRight(int posInParent, cInnerNode<T>* parent){
     }
     return false;
 }
-
-/*template<typename T>
-void cInnerNode<T>::printNodes(bool printSubtree, int level, bool includeLinks) {
-    //print tuples in leaf node, format: [tuple1, tuple2, ...], where tuple is [attr1, attr2, ...]
-    int count = this->getCount();
-    if(printSubtree){
-        for(int i = 0; i < level; i++){
-            printf("_  ");
-        }
-        printf("InnerNode: ");
-    }
-    printf("[");
-    for(int i = 0; i < count; i++){
-        printf("([");
-        char* tupleLow = this->getTupleLowPtr(i);
-        char* tupleHigh = this->getTupleHighPtr(i);
-
-        T* tupleLowT;
-        
-
-        for(int j = 0; j < this->metadata->n1; j++){
-            printf("%d", *reinterpret_cast<T*>(tupleLow + j*this->metadata->attrSize));
-            if(j < this->metadata->n1 - 1){
-                printf(", ");
-            }
-        }
-        printf("],[");
-        for(int j = 0; j < this->metadata->n1; j++){
-            printf("%d", *reinterpret_cast<T*>(tupleHigh + j*this->metadata->attrSize));
-            if(j < this->metadata->n1 - 1){
-                printf(", ");
-            }
-        }
-        printf("])");
-        if(i < count - 1){
-            printf(", ");
-        }
-    }
-    printf("]\n");
-    if(printSubtree){
-        for(int i = 0; i < count; i++){
-            cNode<T>* child = this->getChild(i);
-            if(child != nullptr)
-                child->printNodes(printSubtree, level + 1, includeLinks);
-        }
-    }
-}*/
-        
