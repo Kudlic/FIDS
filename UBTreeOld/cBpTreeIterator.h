@@ -4,7 +4,7 @@
 
 
 template<typename T>
-class cBpTreeIterator {
+class cBpTreeIteratorRange {
     private:
     //TODOMBY: save state and set it
         cLeafNode<T>* startNode;
@@ -16,15 +16,15 @@ class cBpTreeIterator {
         cTreeMetadata<T>* metadata;
         cTuple<T>* resultContainer;
     public: 
-        cBpTreeIterator(cLeafNode<T>* startNode, cLeafNode<T>* endNode, int index, int endIndex, cTreeMetadata<T>* metadata);
-        ~cBpTreeIterator();
+        cBpTreeIteratorRange(cLeafNode<T>* startNode, cLeafNode<T>* endNode, int index, int endIndex, cTreeMetadata<T>* metadata);
+        ~cBpTreeIteratorRange();
         bool hasNext();
         cTuple<T>* next();
         int skip(int count);
         bool reset();
 };
 template<typename T>
-cBpTreeIterator<T>::cBpTreeIterator(cLeafNode<T>* startNode, cLeafNode<T>* endNode, int index, int endIndex, cTreeMetadata<T>* metadata):
+cBpTreeIteratorRange<T>::cBpTreeIteratorRange(cLeafNode<T>* startNode, cLeafNode<T>* endNode, int index, int endIndex, cTreeMetadata<T>* metadata):
     startNode(startNode), 
     currentNode(startNode),
     endNode(endNode), 
@@ -41,16 +41,16 @@ cBpTreeIterator<T>::cBpTreeIterator(cLeafNode<T>* startNode, cLeafNode<T>* endNo
         }
 };
 template<typename T>
-cBpTreeIterator<T>::~cBpTreeIterator(){
+cBpTreeIteratorRange<T>::~cBpTreeIteratorRange(){
     delete resultContainer;
 }
 
 template<typename T>
-bool cBpTreeIterator<T>::hasNext(){
+bool cBpTreeIteratorRange<T>::hasNext(){
     return !(index >= currentMaxIndex && currentNode == endNode);
 }
 template<typename T>
-cTuple<T>* cBpTreeIterator<T>::next(){
+cTuple<T>* cBpTreeIteratorRange<T>::next(){
     
     if(currentNode == nullptr){
         return nullptr;
@@ -70,7 +70,7 @@ cTuple<T>* cBpTreeIterator<T>::next(){
     return resultContainer;
 }
 template<typename T>
-int cBpTreeIterator<T>::skip(int count){
+int cBpTreeIteratorRange<T>::skip(int count){
     int skipped = 0;
     while((skipped < count || count == -1) && hasNext()){
         if(currentNode == nullptr){
@@ -92,7 +92,7 @@ int cBpTreeIterator<T>::skip(int count){
     return skipped;
 }
 template<typename T>
-bool cBpTreeIterator<T>::reset(){
+bool cBpTreeIteratorRange<T>::reset(){
     currentNode = startNode;
     index = 0;
     if(currentNode == endNode){

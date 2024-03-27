@@ -220,7 +220,7 @@ void iteratorTestCase(){
     cTuple<int> searchTup88 = cTuple(new int[1]{88}, 1);
     cTuple<int> searchTup90 = cTuple(new int[1]{90}, 1);
 
-    cBpTreeIterator<int>* iterator = nullptr;
+    cBpTreeIteratorRange<int>* iterator = nullptr;
     //both left outside
     iterator = tree.searchRangeIterator(searchTup2, searchTup20);
     printf("Iterator test 2-20 skip count: %d\n", iterator->skip(-1));

@@ -33,7 +33,7 @@ public:
     bool insert(cTuple<T>& tuple);
     bool remove(cTuple<T>& tuple);
     int searchLinkedList(cTuple<T>& tupleLow, cTuple<T>& tupleHigh);
-    cBpTreeIterator<T>* searchRangeIterator(cTuple<T>& tupleLow, cTuple<T>& tupleHigh);
+    cBpTreeIteratorRange<T>* searchRangeIterator(cTuple<T>& tupleLow, cTuple<T>& tupleHigh);
     void printTree();
     void printMetadata();
 
@@ -450,7 +450,7 @@ int cBpTree<T, B>::searchLinkedList(cTuple<T>& tupleLow, cTuple<T>& tupleHigh) {
 }
 
 template<typename T, typename B>
-cBpTreeIterator<T>* cBpTree<T, B>::searchRangeIterator(cTuple<T>& tupleLow, cTuple<T>& tupleHigh){
+cBpTreeIteratorRange<T>* cBpTree<T, B>::searchRangeIterator(cTuple<T>& tupleLow, cTuple<T>& tupleHigh){
     int resultCount = 0;
     int indexedValues = this->metadata->n;
 

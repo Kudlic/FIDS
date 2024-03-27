@@ -100,6 +100,12 @@ class cZAddrUtils {
 		bool isZAddrGT(char* za1, char* za2);
 		bool isZAddrGEQT(char* za1, char* za2);
 		int cmpZAddress(char* za1, char* za2);
+
+		//setters for function pointers
+		void setIsInRectangleFast8(){isInRectangle = &cZAddrUtils::IsInRectangle_fast_8;}
+		void setIsInRectangleBsr8(){isInRectangle = &cZAddrUtils::IsInRectangle_bsr_8;}
+		void setIsInRectangleFast32(){isInRectangle = &cZAddrUtils::IsInRectangle_fast_32;}
+		void setIsInRectangleBsr32(){isInRectangle = &cZAddrUtils::IsInRectangle_bsr_32;}
 };
 cZAddrUtils::cZAddrUtils(cTreeMetadata* metadata){
     this->metadata = metadata;
@@ -126,8 +132,8 @@ cZAddrUtils::cZAddrUtils(cTreeMetadata* metadata){
         mLobShift64 = metadata->n - mRobShift64;
     }
     else{
-        mRob64 = metadata->n / Int64ByteLength+1;
-        mLob64 = metadata->n / Int64ByteLength;
+        mRob64 = metadata->n / (Int64ByteLength * 8)+1;
+        mLob64 = metadata->n / (Int64ByteLength * 8);
         mLobShift64 = metadata->n % (Int64ByteLength * 8);
         mRobShift64 = (Int64ByteLength * 8) - mLobShift64;
     }
@@ -141,8 +147,8 @@ cZAddrUtils::cZAddrUtils(cTreeMetadata* metadata){
         mLobShift32 = metadata->n - mRobShift32;
     }
     else{
-        mRob32 = metadata->n / Int32ByteLength+1;
-        mLob32 = metadata->n / Int32ByteLength;
+        mRob32 = metadata->n / (Int32ByteLength * 8)+1;
+        mLob32 = metadata->n / (Int32ByteLength * 8);
         mLobShift32 = metadata->n % (Int32ByteLength * 8);
         mRobShift32 = (Int32ByteLength * 8) - mLobShift32;
     }
@@ -156,8 +162,8 @@ cZAddrUtils::cZAddrUtils(cTreeMetadata* metadata){
         mLobShift8 = metadata->n - mRobShift8;
     }
     else{
-        mRob8 = metadata->n / Int8ByteLength+1;
-        mLob8 = metadata->n / Int8ByteLength;
+        mRob8 = metadata->n / (Int8ByteLength * 8)+1;
+        mLob8 = metadata->n / (Int8ByteLength * 8);
         mLobShift8 = metadata->n % (Int8ByteLength * 8);
         mRobShift8 = (Int8ByteLength * 8) - mLobShift8;
     }
@@ -803,7 +809,6 @@ bool cZAddrUtils::IsIntersected_ZrQr_block_bsr_32(char* zi_a, char* zi_b, char* 
 	uint half_b_block;
 
 	// Tento jednoduchy test sice pomaha, ale nejsem si jisty, jestli to neni spis charakterem dotazu.
-	/*
 	int firstDiffStep = -1;
 	for (int step = mBsrSteps32 - 1; step >= 0; step--)
 	{
@@ -822,9 +827,8 @@ bool cZAddrUtils::IsIntersected_ZrQr_block_bsr_32(char* zi_a, char* zi_b, char* 
 	{
 		return true;
 	}
-	*/
 
-	for (int step = mBsrSteps32-1; step >= 0; step--)
+	for (int step = firstDiffStep; step >= 0; step--)
 	{
 		uint a_block = zi_a_ui[step];
 		uint b_block = zi_b_ui[step];

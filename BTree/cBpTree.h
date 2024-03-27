@@ -63,7 +63,7 @@ public:
     int searchRange(cTuple<T>& tupleLow, cTuple<T>& tupleHigh, T*& resultData, int& allocatedCount, bool printData = false);
     int searchPoint(cTuple<T>& tuple, T*& resultData, int& allocatedCount, bool printData = false);
     int searchRangeNoAlloc(cTuple<T>& tupleLow, cTuple<T>& tupleHigh, T*& resultData, bool printData = false);
-    cBpTreeIterator<T>* searchRangeIterator(cTuple<T>& tupleLow, cTuple<T>& tupleHigh);
+    cBpTreeIteratorRange<T>* searchRangeIterator(cTuple<T>& tupleLow, cTuple<T>& tupleHigh);
     void printTree();
     void printMetadata();
 
@@ -820,7 +820,7 @@ int cBpTree<T>::searchRangeNoAlloc(cTuple<T>& tupleLow, cTuple<T>& tupleHigh, T*
     return resultCount;
 }
 template<typename T>
-cBpTreeIterator<T>* cBpTree<T>::searchRangeIterator(cTuple<T>& tupleLow, cTuple<T>& tupleHigh){
+cBpTreeIteratorRange<T>* cBpTree<T>::searchRangeIterator(cTuple<T>& tupleLow, cTuple<T>& tupleHigh){
     int resultCount = 0;
     int indexedValues = this->metadata->n1;
 
@@ -901,7 +901,7 @@ cBpTreeIterator<T>* cBpTree<T>::searchRangeIterator(cTuple<T>& tupleLow, cTuple<
             }
         }
     }
-    return new cBpTreeIterator<T>(dynamic_cast<cLeafNode<T>*>(first), dynamic_cast<cLeafNode<T>*>(last), indexFirst, indexLast, this->metadata);
+    return new cBpTreeIteratorRange<T>(dynamic_cast<cLeafNode<T>*>(first), dynamic_cast<cLeafNode<T>*>(last), indexFirst, indexLast, this->metadata);
 
 }
 template<typename T>

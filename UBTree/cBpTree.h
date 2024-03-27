@@ -7,7 +7,8 @@
 #include "cLeafNode.h"
 #include "cInnerNode.h"
 #include "cStack.h"
-#include "cBpTreeIterator.h"
+#include "cBpTreeIteratorRange.h"
+#include "cBpTreeIteratorPoint.h"
 #include <stdlib.h>
 #include <math.h>
 #include <iomanip>
@@ -36,7 +37,8 @@ public:
     bool insert(cTuple<T>& tuple);
     bool remove(cTuple<T>& tuple);
     //int searchLinkedList(cTuple<T>& tupleLow, cTuple<T>& tupleHigh);
-    cBpTreeIterator<T>* searchRangeIterator(cTuple<T>& tupleLow, cTuple<T>& tupleHigh);
+    cBpTreeIteratorRange<T>* searchRangeIterator(cTuple<T>& tupleLow, cTuple<T>& tupleHigh);
+    cBpTreeIteratorPoint<T>* searchPointIterator(cTuple<T>& tuple);
     void printTreeTuples();
     void printTreeHex();
     void printMetadata();
@@ -217,8 +219,8 @@ bool cBpTree<T, B>::remove(cTuple<T>& tuple){
 
     //TODO: dont forget to dealloc
     char * zAddress = new char[this->metadata->zAddressBytes];
-    this->transformDataToZAddress(tuple.getAttributes(), zAddress);
-    cTuple<T> * zAddrTuple = new cTuple<T>((T*)zAddress, this->metadata->zAddressBytes);
+    this->zTools->transformDataToZAddress((char*)tuple.getAttributes(), zAddress);
+    //cTuple<T> * zAddrTuple = new cTuple<T>((T*)zAddress, this->metadata->zAddressBytes);
 
     //Initiate a node stack
     cStack<cNode<T>*> stack = cStack<cNode<T>*>(this->metadata->order);
@@ -234,8 +236,7 @@ bool cBpTree<T, B>::remove(cTuple<T>& tuple){
             cInnerNode<T>* innerNode = dynamic_cast<cInnerNode<T>*>(current);
             int i = 0;
             for(; i < count; i++) {
-                cTuple<T> tupHigh = cTuple<T> ((T*)innerNode->getTupleHighPtr(i), innerNode->metadata->zAddressBytes, true);
-                if(tupHigh.isGEQT(tuple, innerNode->metadata->zAddressBytes)){
+                if(this->zTools->isZAddrGEQT(innerNode->getTupleHighPtr(i), zAddress)){
                     current = innerNode->getChild(i);
                     break;
                 }
@@ -250,9 +251,8 @@ bool cBpTree<T, B>::remove(cTuple<T>& tuple){
             cLeafNode<T>* leafNode = dynamic_cast<cLeafNode<T>*>(current);
             int i = 0;
             for(; i < count; i++) {
-                cTuple<T> tempTuple = cTuple<T>((T*)leafNode->getElementPtr(i), leafNode->metadata->zAddressBytes, true);
-                if(tuple.isEQ(tempTuple, leafNode->metadata->zAddressBytes)){
-                    leafNode->deleteTuple(i);
+                if(this->zTools->isZAddrEQ(zAddress, leafNode->getElementPtr(i))){
+                    leafNode->deleteZAddr(i);
                     needToMerge = true;
                     break;
                 }
@@ -289,9 +289,8 @@ bool cBpTree<T, B>::remove(cTuple<T>& tuple){
                     cLeafNode<T>* sibling = dynamic_cast<cLeafNode<T>*>(parent->getChild(position + 1));
                     if(sibling->getCount() > sibling->metadata->halfLeafNode){
                         //save tuple from sibling, insert it into current, remove it from sibling
-                        cTuple<T> borrowedTuple = cTuple<T>((T*)sibling->getElementPtr(0), sibling->metadata->zAddressBytes, true);
-                        leafNode->insertTuple(&borrowedTuple);
-                        sibling->deleteTuple(0);
+                        leafNode->insertZAddr(sibling->getElementPtr(0), this->zTools);
+                        sibling->deleteZAddr(0);
                         //update ranges of sibling and current
                         parent->adjustRange(position + 1);
                         parent->adjustRange(position);
@@ -303,9 +302,8 @@ bool cBpTree<T, B>::remove(cTuple<T>& tuple){
                     cLeafNode<T>* sibling = dynamic_cast<cLeafNode<T>*>(parent->getChild(position - 1));
                     if(sibling->getCount() > sibling->metadata->halfLeafNode){
                         //save tuple from sibling, insert it into current, remove it from sibling
-                        cTuple<T> borrowedTuple = cTuple<T>((T*)sibling->getElementPtr(sibling->getCount()-1), sibling->metadata->zAddressBytes, true);
-                        leafNode->insertTuple(&borrowedTuple);
-                        sibling->deleteTuple(sibling->getCount()-1);
+                        leafNode->insertZAddr(sibling->getElementPtr(sibling->getCount()-1), this->zTools);
+                        sibling->deleteZAddr(sibling->getCount()-1);
                         //update ranges of sibling and current
                         parent->adjustRange(position - 1);
                         parent->adjustRange(position);
@@ -394,71 +392,12 @@ bool cBpTree<T, B>::remove(cTuple<T>& tuple){
                 needToMerge = false;
                 break;
             }
-            
         }
     }
     return true;
 }
-/*
 template<typename T, typename B>
-int cBpTree<T, B>::searchLinkedList(cTuple<T>& tupleLow, cTuple<T>& tupleHigh) {
-    cNode<T>* current = this->root;
-    int count = -1;
-    int foundTuples = 0;
-    while (current != nullptr) {
-        if(!current->isLeafNode()){
-            count = current->getCount();
-            cInnerNode<T>* innerNode = dynamic_cast<cInnerNode<T>*>(current);
-            int i = 0;
-            for(; i < count; i++) {
-                cTuple<T> tupLowTree = cTuple<T> ((T*)innerNode->getTupleLowPtr(i), innerNode->metadata->n, true);
-                cTuple<T> tupHighTree = cTuple<T> ((T*)innerNode->getTupleHighPtr(i), innerNode->metadata->n, true);
-                if(tupleLow.isTupleBetween(tupLowTree, tupHighTree)){
-                    current = innerNode->getChild(i);
-                    break;
-                }
-            }
-            if(i == count){
-                return foundTuples;
-            }
-        }
-        else{
-            break;
-        }
-    }
-    cLeafNode<T>* leafNode = dynamic_cast<cLeafNode<T>*>(current);
-    bool lastRes = false;
-    while (leafNode != nullptr) {
-        count = leafNode->getCount();
-        //cTuple<T> *tupLow = new cTuple<T> ((T*)leafNode->getElementPtr(0), leafNode->metadata->n1);
-        //cTuple<T> *tupHigh = new cTuple<T> ((T*)leafNode->getElementPtr(leafNode->getCount()), leafNode->metadata->n1);
-        leafNode->printNodes(false, 0);
-        for(int i = 0; i < count; i++) {
-            cTuple<T> tempTup = cTuple<T>((T*)leafNode->getElementPtr(i), leafNode->metadata->n1, true);
-
-            if(tupleHigh.isGEQT(tempTup)){
-                foundTuples++;
-                lastRes = true;
-            }
-            else if (lastRes == true){
-                return foundTuples;
-            }
-        }
-        if(lastRes){
-            leafNode = leafNode->getNodeLink();
-            if(leafNode == nullptr){
-                return foundTuples;
-            }
-            continue;
-        }
-        return foundTuples;
-    }
-}
-*/
-template<typename T, typename B>
-cBpTreeIterator<T>* cBpTree<T, B>::searchRangeIterator(cTuple<T>& tupleLow, cTuple<T>& tupleHigh){
-    int resultCount = 0;
-    int indexedValues = this->metadata->n;
+cBpTreeIteratorRange<T>* cBpTree<T, B>::searchRangeIterator(cTuple<T>& tupleLow, cTuple<T>& tupleHigh){
     if(tupleLow.isGT(tupleHigh)){
         return nullptr;
     }
@@ -471,90 +410,15 @@ cBpTreeIterator<T>* cBpTree<T, B>::searchRangeIterator(cTuple<T>& tupleLow, cTup
     this->zTools->transformDataToZAddress((char*)tupleHigh.getAttributes(), zAddressHigh);
     cTuple<T> * zAddrTupleHigh = new cTuple<T>((T*)zAddressHigh, this->metadata->n);
 
-    /*
-    cNode<T>* first = this->root;
-    cNode<T>* last = this->root;        
-    int indexFirst = -1;
-    int indexLast = -1;
+    return new cBpTreeIteratorRange<T>(this->root, zAddrTupleLow, zAddrTupleHigh, this->metadata, this->getZTools());
+}
+template<typename T, typename B>
+cBpTreeIteratorPoint<T>* cBpTree<T, B>::searchPointIterator(cTuple<T>& tuple){
+    char * zAddress = new char[this->metadata->zAddressBytes];
+    this->zTools->transformDataToZAddress((char*)tuple.getAttributes(), zAddress);
+    cTuple<T> * zAddrTuple = new cTuple<T>((T*)zAddress, this->metadata->n);
 
-    //Now find first leaf node, search until Leaf node is reached
-    while(first != nullptr && indexFirst == -1){
-        bool isLeaf = first->isLeafNode();
-        int count = first->getCount();
-        if(isLeaf){
-            //find index of first element to copy
-            cLeafNode<T>* leafNode = dynamic_cast<cLeafNode<T>*>(first);
-            int i = 0;
-            for(; i < count; i++) {
-                if(this->getZTools()->IsInRectangle(leafNode->getElementPtr(i), zAddressLow, zAddressHigh)){
-                    indexFirst = i;
-                    break;
-                }
-            }
-        }
-        else{
-            cInnerNode<T>* innerNode = dynamic_cast<cInnerNode<T>*>(first);
-            int i = 0;
-            for(; i < count; i++) {
-                //cTuple<T> tupHighTree = cTuple<T> ((T*)innerNode->getTupleHighPtr(i), innerNode->metadata->n, true);
-                //Easy to find last interval it fits in, just HigherEQthan, because lower bound can be lower than first element
-                if(this->getZTools()->IsIntersected_ZrQr_block(innerNode->getTupleLowPtr(i), innerNode->getTupleHighPtr(i),zAddressLow, zAddressHigh)){
-                    first = innerNode->getChild(i);
-                    break;
-                }
-                
-                //if(tupHighTree.isGEQT(zAddrTupleLow, indexedValues)){
-                //    first = innerNode->getChild(i);
-                //    break;
-                //}
-                
-            }
-            //TODO: rethink how we could reach this state, 
-            //either rectangle is before or after all zAddrs in this node
-            //This should not matter, because with no intersection, no tuples can be found anyways.
-            //Therefore always set it to nullptr and in iterator, if nullptr, just return nothing because we reached end
-            if(i == count){
-                first = nullptr;
-                indexFirst = 0;
-            }
-        }
-    }
-    //Now find last leaf node, search until Leaf node is reached
-    while(last != nullptr && indexLast == -1){
-        bool isLeaf = last->isLeafNode();
-        int count = last->getCount();
-        if(isLeaf){
-            //find index of first element to not copy
-            cLeafNode<T>* leafNode = dynamic_cast<cLeafNode<T>*>(last);
-            int j = count - 1;
-            for(; j >= 0; j--) {
-                if(this->getZTools()->IsInRectangle(leafNode->getElementPtr(j), zAddressLow, zAddressHigh)){
-                    indexLast = j;
-                    break;
-                }
-            }
-        }
-        else{//if there is no tuple that is not supposed to be included, we will set inner node tu nullptr,
-            cInnerNode<T>* innerNode = dynamic_cast<cInnerNode<T>*>(last);
-            int j = count-1;
-            //check if tuple is higher than last tuple in inner node
-            for(; j >= 0; j--) {
-                if(this->getZTools()->IsIntersected_ZrQr_block(innerNode->getTupleLowPtr(j), innerNode->getTupleHighPtr(j), zAddressLow, zAddressHigh))
-                if(tupHighTree.isGT(zAddrTupleHigh, indexedValues)){
-                    last = innerNode->getChild(j);
-                    break;
-                }
-            }
-            if(j == -1){
-                last = nullptr;
-                indexLast = 0;
-                break;
-            }
-        }
-    }
-    */
-    return new cBpTreeIterator<T>(this->root, zAddrTupleLow, zAddrTupleHigh, this->metadata, this->getZTools());
-
+    return new cBpTreeIteratorPoint<T>(this->root, zAddrTuple, this->metadata, this->getZTools());
 }
 
 template<typename T, typename B>

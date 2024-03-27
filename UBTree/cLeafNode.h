@@ -21,6 +21,7 @@ class cLeafNode : public cNode<T> {
     //void printNodes(bool printSubtree = false, int level = 0, bool includeLinks = false) override;
     int insertZAddr(char* data, cZAddrUtils* zTools);
     int deleteZAddr(char* data, cZAddrUtils* zTools);
+    int deleteZAddr(int position);
     cNode<T>* split(int splitNodeIndex, cNode<T>* parent) override;
     cNode<T>* mergeRight(int posInParent, cNode<T>* parent) override;
 };
@@ -119,6 +120,26 @@ int cLeafNode<T>::deleteZAddr(char* data, cZAddrUtils* zTools) {
         return i;
     }
     return -1;
+}
+template<typename T>
+int cLeafNode<T>::deleteZAddr(int position) {
+    // Implementation for deleteTuple method
+    int count = this->getCount();
+    if(count == 0 || position > count-1) { return -1; }
+    memset(
+        this->nData + this->metadata->nDataStartBShift + (this->metadata->nDataElementLeafSize * position), 
+        0, 
+        this->metadata->nDataElementLeafSize
+    );
+    memmove(
+        this->nData + this->metadata->nDataStartBShift + (this->metadata->nDataElementLeafSize * position), 
+        this->nData + this->metadata->nDataStartBShift + (this->metadata->nDataElementLeafSize * (position + 1)), 
+        this->metadata->nDataElementLeafSize * (count - position - 1)
+    );
+
+    this->incrementCount(-1);
+    this->metadata->tupleCount--;
+    return position;
 }
 
 template<typename T>
