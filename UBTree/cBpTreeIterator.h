@@ -17,21 +17,28 @@ class cBpTreeIterator {
         cZAddrUtils* zTools;
         cTreeMetadata* metadata;
         int dimensions;
-        
         virtual bool init() = 0;
     public:
+        int initRectangeCalls;
+        int initIsIntersectedCalls;
+        int rectangleCalls;
+        int isIntersectedCalls;
+
         cBpTreeIterator(cNode<T>* root, cTreeMetadata* metadata, cZAddrUtils* zTools);
         virtual ~cBpTreeIterator();
         virtual bool hasNext() = 0;
         virtual cTuple<T>* next() = 0;
         virtual int skip(int count) = 0;
         virtual bool reset() = 0;
+        void resetCallCounters();
 };
 
 template<typename T>
 cBpTreeIterator<T>::cBpTreeIterator(cNode<T>* root, cTreeMetadata* metadata, cZAddrUtils* zTools)
-    : root(root), metadata(metadata), zTools(zTools){ dimensions = metadata->n;
+    : root(root), metadata(metadata), zTools(zTools){ dimensions = metadata->n; rectangleCalls = 0; isIntersectedCalls = 0;
 };
 template<typename T>
 cBpTreeIterator<T>::~cBpTreeIterator(){
 };
+template<typename T>
+void cBpTreeIterator<T>::resetCallCounters() { rectangleCalls = 0; isIntersectedCalls = 0; };

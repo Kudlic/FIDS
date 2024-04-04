@@ -3,6 +3,8 @@
 #include <climits>
 #include <cstring>
 #include <iostream>
+#include <cstdint>
+
 //#include <intrin.h>
 
 
@@ -1280,17 +1282,27 @@ bool ZAddressTools::IsIntersected_ZrQr_block64_fast(char* zi_a, char* zi_b, char
 	return true;
 }
 
-bool ZAddressTools::BitScanReverse64(unsigned long * index, uint64_t mask)
+#if defined(__GNUC__) || defined(__clang__) // Check for GCC or Clang
+bool ZAddressTools::BitScanReverse64asm(unsigned long* index, uint64_t mask)
 {
 	if (mask == 0)
 		return false;
-	*index = 63- __builtin_clzll(mask);
+	__asm__("bsr %1, %0" : "=r" (*index) : "r" (mask)); // inline assembly to perform bsr
 	return true;
 }
-bool ZAddressTools::BitScanReverse64asm(unsigned long * index, uint64_t mask)
+#elif defined(_MSC_VER) // Check for MSVC
+#include <intrin.h>
+bool ZAddressTools::BitScanReverse64asm(unsigned long* index, uint64_t mask)
 {
 	if (mask == 0)
 		return false;
-    __asm__ ("bsr %1, %0" : "=r" (*index) : "r" (mask)); // inline assembly to perform bsr
+
+	unsigned long idx;
+	_BitScanReverse64(&idx, mask); // Use _BitScanReverse64 intrinsic for x64
+	*index = idx;
+
 	return true;
 }
+#else
+#error Unsupported compiler
+#endif

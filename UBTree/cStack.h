@@ -1,4 +1,4 @@
-
+#pragma once
 template <typename T>
 class cStack {
 private:
@@ -12,6 +12,7 @@ private:
     int maxLength;
 
 public:
+    cStack();
     cStack(int maxLength);
     ~cStack();
     void push(const T& value, int position);
@@ -23,6 +24,10 @@ public:
     bool isFull() const;
     int getOrder();
 };
+template <typename T>
+cStack<T>::cStack() : top(-1), maxLength(0) {
+	stackArray = nullptr;
+}
 
 template <typename T>
 cStack<T>::cStack(int maxLength) : top(-1), maxLength(maxLength) {
@@ -31,7 +36,8 @@ cStack<T>::cStack(int maxLength) : top(-1), maxLength(maxLength) {
 
 template <typename T>
 cStack<T>::~cStack() {
-    delete[] stackArray;
+    if(stackArray != nullptr)
+        delete[] stackArray;
 }
 
 template <typename T>

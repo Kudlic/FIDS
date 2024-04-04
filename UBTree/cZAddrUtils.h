@@ -5,6 +5,12 @@
 #include <cstddef>
 #include "cTreeMetadata.h"
 
+#define uint unsigned int
+#define u_int64_t unsigned long long
+#define u_int32_t unsigned int
+#define u_int16_t unsigned short
+#define u_int8_t unsigned char
+
 //BSR algorithms seem to count with not fitting the data
 //Can be normally sliced using pointer of another type. Have prepared masks to zero potential junk.
 
@@ -66,7 +72,6 @@ class cZAddrUtils {
         cZAddrUtils(cTreeMetadata* metadata);
         ~cZAddrUtils();
         static bool getZAddressBit(char* zAddress, std::size_t bitIndex);
-        static bool BitScanReverse64(unsigned long * index, uint64_t mask);
         static bool BitScanReverse64asm(unsigned long * index, uint64_t mask);
         //virtual methods, that need to be initialised with type T in cZAddrUtilsTemplate
         virtual void transformDataToZAddress(char* data, char*& za) = 0;
@@ -278,20 +283,32 @@ bool cZAddrUtils::getZAddressBit(char* zAddress, std::size_t bitIndex){
 	uint bit = zAddress[charOrder] & mask;
 	return bit > 0;
 }
-bool cZAddrUtils::BitScanReverse64(unsigned long * index, uint64_t mask)
+
+
+#if defined(__GNUC__) || defined(__clang__) // Check for GCC or Clang
+bool cZAddrUtils::BitScanReverse64asm(unsigned long* index, uint64_t mask)
 {
 	if (mask == 0)
 		return false;
-	*index = 63- __builtin_clzll(mask);
+	__asm__("bsr %1, %0" : "=r" (*index) : "r" (mask)); // inline assembly to perform bsr
 	return true;
 }
-bool cZAddrUtils::BitScanReverse64asm(unsigned long * index, uint64_t mask)
+#elif defined(_MSC_VER) // Check for MSVC
+#include <intrin.h>
+bool cZAddrUtils::BitScanReverse64asm(unsigned long* index, uint64_t mask)
 {
 	if (mask == 0)
 		return false;
-    __asm__ ("bsr %1, %0" : "=r" (*index) : "r" (mask)); // inline assembly to perform bsr
+
+	unsigned long idx;
+	_BitScanReverse64(&idx, mask); // Use _BitScanReverse64 intrinsic for x64
+	*index = idx;
+
 	return true;
 }
+#else
+#error Unsupported compiler
+#endif
 bool cZAddrUtils::IsInRectangle_bsr_64(char* za_t, char* za_ql, char* za_qh)
 {
 	//za_t je pole bloku bodu, za_ql a za_qh jsou pole bloku rohu obdelniku

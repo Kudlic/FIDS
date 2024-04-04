@@ -22,6 +22,8 @@ Only arrays should be used.
 #include "cInnerNode.h"
 #include "cStack.h"
 #include "cBpTreeIterator.h"
+#include "cBpTreeIteratorRange.h"
+#include "cBpTreeIteratorRectangle.h"
 #include <stdlib.h>
 #include <math.h>
 //DONE list:
@@ -64,6 +66,7 @@ public:
     int searchPoint(cTuple<T>& tuple, T*& resultData, int& allocatedCount, bool printData = false);
     int searchRangeNoAlloc(cTuple<T>& tupleLow, cTuple<T>& tupleHigh, T*& resultData, bool printData = false);
     cBpTreeIteratorRange<T>* searchRangeIterator(cTuple<T>& tupleLow, cTuple<T>& tupleHigh);
+    cBpTreeIteratorRectangle<T>* searchRectangleIterator(cTuple<T>& lowBound, cTuple<T>& highBound);
     void printTree();
     void printMetadata();
 
@@ -223,6 +226,11 @@ bool cBpTree<T>::insert(cTuple<T>& tuple) {
     return true;
 }
 
+template<typename T>
+cBpTreeIteratorRectangle<T>* cBpTree<T>::searchRectangleIterator(cTuple<T>& lowBound, cTuple<T>& highBound){
+    return new cBpTreeIteratorRectangle<T>(&lowBound, &highBound, this->root, this->metadata);
+}
+      
 //First try to find the appropriate record using between on ranges, preemptively stop if not found
 template<typename T>
 bool cBpTree<T>::remove(cTuple<T>& tuple){

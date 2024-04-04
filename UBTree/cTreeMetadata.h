@@ -66,6 +66,7 @@ cTreeMetadata::cTreeMetadata(int n, int blockSize, int attributeSize, int maxInn
     tupleCount(0),
     leafNodeCount(0),
     innerNodeCount(0),
+    innerElemCount(0),
     nDataIsLeafNodeBShift(0),
     //set position shifts
     nDataCountBShift(4),
@@ -76,8 +77,8 @@ cTreeMetadata::cTreeMetadata(int n, int blockSize, int attributeSize, int maxInn
         nDataElementLeafSize = attributeSize * n;
         nDataElementInnerSize = (n * attributeSize * 2) + sizeof(char*);
         nDataElementInnerTupleSize = n * attributeSize;
-        halfInnerNode = (maxInnerNodeElements-1)/2;
-        halfLeafNode = (maxLeafNodeElements-1)/2;
+        halfInnerNode = (maxInnerNodeElements)/2;
+        halfLeafNode = (maxLeafNodeElements)/2;
 
         nDataInnerNodeElementChildBShift = (n * attributeSize * 2);
         nDataInnerNodeElementRangeLowBShift = 0;

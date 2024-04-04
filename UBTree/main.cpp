@@ -6,6 +6,13 @@
 #include <cstring>
 #include <stdio.h>
 #include <random>
+#include <numeric>
+
+
+#define u_int8_t unsigned char
+#define u_int16_t unsigned short
+#define u_int32_t unsigned int
+#define u_int64_t unsigned long long
 
 int benchmarks = 0;
 float GetThroughput(int opsCount, float period, int unit = 1000000)
@@ -49,15 +56,16 @@ void benchmark_uint16(int dims, int recordsNum, int queryNum, int iterations, in
     auto t2 = std::chrono::high_resolution_clock::now();
     std::chrono::duration<double> time_span_insert = std::chrono::duration_cast<std::chrono::duration<double>>(t2 - t1);
     printf("Insert: Time: %.2fs, Records:%d, Throughput: %.2f mil. op/s.\n\n", time_span_insert.count(), recordsNum, GetThroughput(recordsNum, time_span_insert.count()));
-
-
+    tree.printMetadata();
+    printf("BpTree MB: %.3f\n",BytesToMB(tree.getBpTreeBytes()));
+    printf("Number of links: %d\n", tree.checkLinkLength());
     //Generation should be simple enough. By default we set 0-maxVal for each dim.
     //Specified number of dimensions with custom range is selected.
     uint16_t* lqrData = new uint16_t[queryNum * dims];
     uint16_t* hqrData = new uint16_t[queryNum * dims];
     //now we will set random ranges for each query
     srand(17);
-    int randomDimNum = std::min(4, dims); //If possible, we want select on 4 dims
+    int randomDimNum = std::min(8, dims); //If possible, we want select on 8 dims
     for(int i = 0; i < queryNum; i++){
         int toChange = randomDimNum;
         int toLeave = dims - randomDimNum;
@@ -102,9 +110,11 @@ void benchmark_uint16(int dims, int recordsNum, int queryNum, int iterations, in
         iter = tree.searchRangeIterator(lQr, hQr);
         int volume = iter->skip(-1);
         volumes[i] = volume;
+        std::cout << "(" << iter->rectangleCalls << ", " << iter->isIntersectedCalls << "); ";
         delete iter;
     }
     auto t4 = std::chrono::high_resolution_clock::now();
+    std::cout << std::endl;
     std::chrono::duration<double> time_span_search = std::chrono::duration_cast<std::chrono::duration<double>>(t4 - t3);
     printf("Search: Time: %.2fs, Queries:%d, Throughput: %.2f op/s.\n", time_span_search.count(), queryNum, GetThroughput(queryNum, time_span_search.count(), 1));
     //print min, max, avg volume
@@ -113,6 +123,26 @@ void benchmark_uint16(int dims, int recordsNum, int queryNum, int iterations, in
     int sumVolume = std::accumulate(volumes, volumes + queryNum, 0);
     printf("Volume: Min: %d, Max: %d, Avg: %.2f\n\n", minVolume, maxVolume, (float)sumVolume/queryNum);
 
+    int* volumesStack = new int[queryNum];  
+    auto t3s = std::chrono::high_resolution_clock::now();
+    for (int i = 0; i < queryNum; i++) {
+		lQr.setTuple(lqrData + i * dims, dims);
+		hQr.setTuple(hqrData + i * dims, dims);
+		iter = tree.searchRangeIteratorStack(lQr, hQr);
+		int volume = iter->skip(-1);
+		volumesStack[i] = volume;
+        std::cout << "(" << iter->rectangleCalls << ", " << iter->isIntersectedCalls << "); ";
+		delete iter;
+	}
+    auto t4s = std::chrono::high_resolution_clock::now();
+    std::cout << std::endl;
+    std::chrono::duration<double> time_span_search_stack = std::chrono::duration_cast<std::chrono::duration<double>>(t4s - t3s);
+    printf("Search Stack: Time: %.2fs, Queries:%d, Throughput: %.2f op/s.\n", time_span_search_stack.count(), queryNum, GetThroughput(queryNum, time_span_search_stack.count(), 1));
+    //print min, max, avg volume
+    minVolume = *std::min_element(volumesStack, volumesStack + queryNum);
+    maxVolume = *std::max_element(volumesStack, volumesStack + queryNum);
+    sumVolume = std::accumulate(volumesStack, volumesStack + queryNum, 0);
+    printf("Volume Stack: Min: %d, Max: %d, Avg: %.2f\n\n", minVolume, maxVolume, (float)sumVolume/queryNum);
     //benchmark point queries, take points from data
     int* pointVolumes = new int[queryNum];
     auto t5 = std::chrono::high_resolution_clock::now();
@@ -132,10 +162,10 @@ void benchmark_uint16(int dims, int recordsNum, int queryNum, int iterations, in
     sumVolume = std::accumulate(pointVolumes, pointVolumes + queryNum, 0);
     printf("Volume Point: Min: %d, Max: %d, Avg: %.2f\n\n", minVolume, maxVolume, (float)sumVolume/queryNum);
 
-    delete data;
-    delete lqrData;
-    delete hqrData;
-    delete volumes;
+    delete []data;
+    delete []lqrData;
+    delete []hqrData;
+    delete []volumes;
 }
 
 void mediumTest(){
@@ -195,9 +225,9 @@ void mediumTest(){
     printf("Volume expected: %d, Volume iter: %d\n", volumeExpected, volumeIter);
 
     delete tupleContainer;
-    delete data;
-    delete lqrData;
-    delete hqrData;
+    delete []data;
+    delete []lqrData;
+    delete []hqrData;
     delete iter;
     delete lqrZaddr;
     delete hqrZaddr;
@@ -206,7 +236,7 @@ void mediumTest(){
 
 void smallTestCase(){
     //TESTCASE 3 
-    cBpTree<u_int8_t, u_int8_t> tree(2, 16, 32);
+    cBpTree<u_int8_t, u_int8_t> tree(2, 8, 8);
 
     // Insert some data
     srand(170400);
@@ -215,8 +245,8 @@ void smallTestCase(){
     cTuple<u_int8_t> * tupleContainer = new cTuple<u_int8_t>(data, 2, true);
 
     int jMax, iMax;
-    iMax = 0x3F;
-    jMax = 0x3F;
+    iMax = 0xF;
+    jMax = 0xF;
     int recordsNum = iMax * jMax;
 
     auto t1 = std::chrono::high_resolution_clock::now();
@@ -237,7 +267,6 @@ void smallTestCase(){
                 printf("Insertion failed!\n");
                 break;
             }
-            
         }
     }
     auto t2 = std::chrono::high_resolution_clock::now();
@@ -251,7 +280,7 @@ void smallTestCase(){
     tree.printTreeHex();
     //memory clean up
     delete tupleContainer; 
-    delete data;
+    delete []data;
 
     u_int8_t* lqrData = new u_int8_t[2]{2, 0};
     u_int8_t* hqrData = new u_int8_t[2]{3, 2};
@@ -262,7 +291,7 @@ void smallTestCase(){
     cTuple<u_int8_t> container = cTuple<u_int8_t>((u_int8_t*)reconstruction, 2, true);
 
     cBpTreeIterator<u_int8_t> *iter = tree.searchRangeIterator(lQr, hQr);
-
+    /*
     std::cout << "ZAddrs Found: ";
     while(iter->hasNext()){
         cTuple<u_int8_t> * tuple = iter->next();
@@ -273,6 +302,7 @@ void smallTestCase(){
     std::cout << std::endl;
     iter->reset();
     std::cout << "Skipped: " << iter->skip(-1) << std::endl;
+    */
     delete iter;
 
     //set data to 7,4 and 10, 8 and search again
@@ -288,6 +318,19 @@ void smallTestCase(){
         container.setTuple((u_int8_t*)reconstruction, 2);
         tuple->printAsZaddress(); std::cout << ", ";
     }
+    std::cout << std::endl;
+    iter->reset();
+    std::cout << "Skipped: " <<iter->skip(-1) << std::endl;
+    delete iter;
+
+    iter = tree.searchRangeIteratorStack(lQr, hQr);
+    std::cout << "ZAddrs Found: ";
+    while(iter->hasNext()){
+		cTuple<u_int8_t> * tuple = iter->next();
+		tree.getZTools()->transformZAddressToData((char*)tuple->getAttributes(), reconstruction);
+		container.setTuple((u_int8_t*)reconstruction, 2);
+		tuple->printAsZaddress(); std::cout << ", ";
+	}
     std::cout << std::endl;
     iter->reset();
     std::cout << "Skipped: " <<iter->skip(-1) << std::endl;
@@ -333,9 +376,9 @@ void smallTestCase(){
     std::cout << "Skipped: " <<iter->skip(-1) << std::endl;
     delete iter;
 
-    delete lqrData;
-    delete hqrData;
-    delete reconstruction;
+    delete []lqrData;
+    delete []hqrData;
+    delete []reconstruction;
 }
 
 void zAddressTranslationTest(){
@@ -361,7 +404,7 @@ void zAddressTranslationTest(){
     u_int64_t * ptrZAddressXLong = (u_int64_t*)zAddressX;
     printf("ZAddressX: %x %x %x %x %x %x %x %x\n", ptrZAddressX[7], ptrZAddressX[6], ptrZAddressX[5], ptrZAddressX[4], ptrZAddressX[3], ptrZAddressX[2], ptrZAddressX[1], ptrZAddressX[0]);
     printf("ZAddressX: %x %x %x %x\n", ptrZAddressXShort[3], ptrZAddressXShort[2], ptrZAddressXShort[1], ptrZAddressXShort[0]);
-    printf("ZAddressX: %lx\n", ptrZAddressXLong[0]);
+    printf("ZAddressX: %llx\n", ptrZAddressXLong[0]);
 }
 void testFastVSBsr(){
     cBpTree<short, int> tree(8, 5, 5);
@@ -384,7 +427,7 @@ int main() {
     //zAddressTranslationTest();
     //smallTestCase();
     //mediumTest();
-    benchmark_uint16(33, 1e6, 100, 1, 64, 64, 0.05);
+    benchmark_uint16(4, 1e6, 50, 1, 128, 64, 0.001);
     //testFastVSBsr();
     return 0;
 }

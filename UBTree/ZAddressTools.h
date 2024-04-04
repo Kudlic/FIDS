@@ -7,6 +7,9 @@
 #define Int64BitLength 64
 #define Int64ByteLength 8
 
+#define uint unsigned int
+#define uchar unsigned char
+
 #pragma once
 
 class ZAddressTools {

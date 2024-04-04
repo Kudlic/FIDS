@@ -23,11 +23,11 @@ void smallTestCase(){
     srand(170400);
     int records = 200;
 
-    cTuple maximum = cTuple(new int[6]{50, 5, -1, -1, -1, -1}, 6);
+    cTuple<int> maximum = cTuple<int>(new int[6]{50, 5, -1, -1, -1, -1}, 6);
 
     auto t1 = std::chrono::high_resolution_clock::now();
     for(int i = 0; i < records; i++) {
-        cTuple tuple(new int[6]{rand()% maximum.attributes[0], rand()%maximum.attributes[1], i, i, i, i}, 6);
+        cTuple<int> tuple(new int[6]{rand()% maximum.attributes[0], rand()%maximum.attributes[1], i, i, i, i}, 6);
         if(!tree.insert(tuple)){
             printf("Insertion failed!\n");
             break;
@@ -42,8 +42,8 @@ void smallTestCase(){
     printf("Insert BpTable done. Time: %.2fs, Throughput: %.2f mil. op/s.\n\n", time_span.count(), GetThroughput(records, time_span.count()));
     
     
-    cTuple searchTupLow = cTuple(new int[6]{41, 0, -1, -1, -1, -1}, 6);
-    cTuple searchTupHigh = cTuple(new int[6]{41, 1, -1, -1, -1, -1}, 6);
+    cTuple<int> searchTupLow = cTuple<int>(new int[6]{41, 0, -1, -1, -1, -1}, 6);
+    cTuple<int> searchTupHigh = cTuple<int>(new int[6]{41, 1, -1, -1, -1, -1}, 6);
     int * result = new int[records * 6];
     int tupleCount1 = tree.searchRangeNoAlloc(searchTupLow, searchTupHigh, result, true);
     int tupleCount2 = tree.searchRangeNoAlloc(searchTupLow, searchTupLow, result, true);
@@ -132,11 +132,11 @@ void deleteTestCase(){
     srand(170400);
     int records = 20;
 
-    cTuple maximum = cTuple(new int[2]{50, -1}, 2);
+    cTuple<int> maximum = cTuple<int>(new int[2]{50, -1}, 2);
 
     auto t1 = std::chrono::high_resolution_clock::now();
     for(int i = 0; i < records; i++) {
-        cTuple tuple(new int[2]{rand()% maximum.attributes[0], i}, 2);
+        cTuple<int> tuple(new int[2]{rand()% maximum.attributes[0], i}, 2);
         if(!tree.insert(tuple)){
             printf("Insertion failed!\n");
             break;
@@ -150,7 +150,7 @@ void deleteTestCase(){
 
     int deleteVals[20] = {0, 1, 2, 4, 5, 5, 8, 12, 15, 18, 26, 28, 30, 36, 36, 37, 38, 39, 46, 46};
     for(int i = 0; i < 20; i++){
-        cTuple tuple(new int[1]{deleteVals[i]}, 1);
+        cTuple<int> tuple(new int[1]{deleteVals[i]}, 1);
         printf("Deleting: ");
         tuple.printTuple();
         tree.remove(tuple);
@@ -163,11 +163,11 @@ void deleteTestCaseRev(){
     srand(170400);
     int records = 20;
 
-    cTuple maximum = cTuple(new int[2]{50, -1}, 2);
+    cTuple<int> maximum = cTuple<int>(new int[2]{50, -1}, 2);
 
     auto t1 = std::chrono::high_resolution_clock::now();
     for(int i = 0; i < records; i++) {
-        cTuple tuple(new int[2]{rand()% maximum.attributes[0], i}, 2);
+        cTuple<int> tuple(new int[2]{rand()% maximum.attributes[0], i}, 2);
         if(!tree.insert(tuple)){
             printf("Insertion failed!\n");
             break;
@@ -181,7 +181,7 @@ void deleteTestCaseRev(){
 
     int deleteVals[20] = {0, 1, 2, 4, 5, 5, 8, 12, 15, 18, 26, 28, 30, 36, 36, 37, 38, 39, 46, 46};
     for(int i = 19; i >=0; i--){
-        cTuple tuple(new int[1]{deleteVals[i]}, 1);
+        cTuple<int> tuple(new int[1]{deleteVals[i]}, 1);
         printf("Deleting: ");
         tuple.printTuple();
         tree.remove(tuple);
@@ -194,11 +194,11 @@ void iteratorTestCase(){
     srand(170400);
     int records = 50;
 
-    cTuple maximum = cTuple(new int[2]{70, -1}, 2);
+    cTuple<int> maximum = cTuple<int>(new int[2]{70, -1}, 2);
 
     auto t1 = std::chrono::high_resolution_clock::now();
     for(int i = 0; i < records; i++) {
-        cTuple tuple(new int[2]{(rand()% maximum.attributes[0])+20, i}, 2);
+        cTuple<int> tuple(new int[2]{(rand()% maximum.attributes[0])+20, i}, 2);
         if(!tree.insert(tuple)){
             printf("Insertion failed!\n");
             break;
@@ -210,17 +210,17 @@ void iteratorTestCase(){
     //tree.printMetadata();
     printf("BpTree MB: %.3f\n",BytesToMB(tree.getBpTreeBytes()));
 
-    cTuple<int> searchTup2 = cTuple(new int[1]{2}, 1);
-    cTuple<int> searchTup20 = cTuple(new int[1]{20}, 1);
-    cTuple<int> searchTup25 = cTuple(new int[1]{25}, 1);
-    cTuple<int> searchTup40 = cTuple(new int[1]{40}, 1);
-    cTuple<int> searchTup57 = cTuple(new int[1]{57}, 1);
-    cTuple<int> searchTup59 = cTuple(new int[1]{59}, 1);
-    cTuple<int> searchTup70 = cTuple(new int[1]{70}, 1);
-    cTuple<int> searchTup88 = cTuple(new int[1]{88}, 1);
-    cTuple<int> searchTup90 = cTuple(new int[1]{90}, 1);
+    cTuple<int> searchTup2 = cTuple<int>(new int[1]{2}, 1);
+    cTuple<int> searchTup20 = cTuple<int>(new int[1]{20}, 1);
+    cTuple<int> searchTup25 = cTuple<int>(new int[1]{25}, 1);
+    cTuple<int> searchTup40 = cTuple<int>(new int[1]{40}, 1);
+    cTuple<int> searchTup57 = cTuple<int>(new int[1]{57}, 1);
+    cTuple<int> searchTup59 = cTuple<int>(new int[1]{59}, 1);
+    cTuple<int> searchTup70 = cTuple<int>(new int[1]{70}, 1);
+    cTuple<int> searchTup88 = cTuple<int>(new int[1]{88}, 1);
+    cTuple<int> searchTup90 = cTuple<int>(new int[1]{90}, 1);
 
-    cBpTreeIteratorRange<int>* iterator = nullptr;
+    cBpTreeIterator<int>* iterator = nullptr;
     //both left outside
     iterator = tree.searchRangeIterator(searchTup2, searchTup20);
     printf("Iterator test 2-20 skip count: %d\n", iterator->skip(-1));
@@ -276,6 +276,13 @@ void iteratorTestCase(){
     }
     delete iterator;
 
+    iterator = tree.searchRectangleIterator(searchTup20, searchTup25);
+    while(iterator->hasNext()){
+        cTuple<int>* tuple = iterator->next();
+        tuple->printTuple();
+    }
+    iterator->reset();
+    printf("Iterator test 20-25 skip count: %d\n", iterator->skip(-1));
 }
 /*
 void largeTestCase(){
@@ -468,7 +475,7 @@ void benchmark(int* records, int recordsSize, int queries, int n1, int n2, int n
         }
     }
     if(benchmarks == 0)
-        printf("Config %c TupleCount %c BpTree size %c Data size %c Insert time (s) %c Insert k. op/s %c RangeQuery time (s) %c RangeQuery k. op/s %c PointQuery time (s) %c PointQuery k. op/s\n", delimiter, delimiter, delimiter, delimiter, delimiter, delimiter, delimiter, delimiter, delimiter);
+        printf("Config %c TupleCount %c BpTree size %c Data size %c Insert time (s) %c Insert k. op/s %c RangeQuery time (s) %c RangeQuery k. op/s %c PointQuery time (s) %c PointQuery k. op/s %c RecQuery time (s) %c RecQuery k. op/s\n", delimiter, delimiter, delimiter, delimiter, delimiter, delimiter, delimiter, delimiter, delimiter, delimiter, delimiter);
     benchmarks++;
     for(int m = 0; m < recordsSize; m++){
         printf("\"n1: %d, n2: %d, nodeSize: %d, queries: %d\"%c ", n1, n2, nodeSize, queries, delimiter);
@@ -514,9 +521,21 @@ void benchmark(int* records, int recordsSize, int queries, int n1, int n2, int n
         t2 = std::chrono::high_resolution_clock::now();
         delete [] result2;
         std::chrono::duration<double> time_span_point = std::chrono::duration_cast<std::chrono::duration<double>>(t2 - t1);
-        printf("%.3f %c %.3f\n", 
+        printf("%.3f %c %.3f %c", 
             time_span_point.count(), delimiter, 
-            GetThroughput(queries, time_span_point.count(), 1000));
+            GetThroughput(queries, time_span_point.count(), 1000), delimiter);
+        fflush(stdout);
+
+        t1 = std::chrono::high_resolution_clock::now();
+        for(int i = 0; i < queries; i++) {
+            cBpTreeIterator<int>* iterator = tree.searchRectangleIterator(*tuplesLow[i], *tuplesHigh[i]);
+            int tupleCount = iterator->skip(-1);
+        }
+        t2 = std::chrono::high_resolution_clock::now();
+        std::chrono::duration<double> time_span_iterator = std::chrono::duration_cast<std::chrono::duration<double>>(t2 - t1);
+        printf("%.3f %c %.3f\n", 
+            time_span_iterator.count(), delimiter, 
+            GetThroughput(queries, time_span_iterator.count(), 1000));
         fflush(stdout);
     }
 
@@ -535,24 +554,25 @@ void benchmark(int* records, int recordsSize, int queries, int n1, int n2, int n
 
 int main() {
     //iteratorTestCase();
-    deleteTestCase();
+    //deleteTestCase();
     //deleteTestCaseRev();
     //largeTestCase();
     
-    /*
     int recSize = 5;
     int * records = new int[recSize]{int(1e3), int(1e4), int(1e5), int(1e6), int(4e6)};
-    benchmark(records, recSize, 1000, 2,  2, 16,  ',');
+    /*benchmark(records, recSize, 1000, 2,  2, 16,  ',');
     benchmark(records, recSize, 1000, 2,  2, 32,  ',');
     benchmark(records, recSize, 1000, 2,  2, 64,  ',');
     benchmark(records, recSize, 1000, 2,  2, 128, ',');
     benchmark(records, recSize, 1000, 4,  8, 64,  ',');
-    benchmark(records, recSize, 1000, 4,  8, 128, ',');
+    benchmark(records, recSize, 1000, 4,  8, 128, ',');*/
     benchmark(records, recSize, 1000, 8,  8, 64,  ',');
+    /*
     benchmark(records, recSize, 1000, 8,  8, 128, ',');
     benchmark(records, recSize, 1000, 16, 4, 64,  ',');
     benchmark(records, recSize, 1000, 16, 4, 128, ',');
     */
+    
 
 
     // Create a B+ tree with 2 indexed attributes and 2 non-indexed attributes

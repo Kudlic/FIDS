@@ -8,6 +8,7 @@
 #include "cInnerNode.h"
 #include "cStack.h"
 #include "cBpTreeIteratorRange.h"
+#include "cBpTreeIteratorRangeStack.h"
 #include "cBpTreeIteratorPoint.h"
 #include <stdlib.h>
 #include <math.h>
@@ -38,10 +39,12 @@ public:
     bool remove(cTuple<T>& tuple);
     //int searchLinkedList(cTuple<T>& tupleLow, cTuple<T>& tupleHigh);
     cBpTreeIteratorRange<T>* searchRangeIterator(cTuple<T>& tupleLow, cTuple<T>& tupleHigh);
+    cBpTreeIteratorRangeStack<T>* searchRangeIteratorStack(cTuple<T>& tupleLow, cTuple<T>& tupleHigh);
     cBpTreeIteratorPoint<T>* searchPointIterator(cTuple<T>& tuple);
     void printTreeTuples();
     void printTreeHex();
     void printMetadata();
+    int checkLinkLength();
 };
 
 template<typename T, typename B>
@@ -101,7 +104,6 @@ bool cBpTree<T, B>::insert(cTuple<T>& tuple) {
                 cLeafNode<T>* child = nullptr;
                 int childIndex = -1;
                 //Searching for range is simplified, if possible, always insert into earliest possible range, which will have range high widened
-                //Distances are not used to find closest tuple
                 for(int i = 0; i < count; i++) {
                     //Two tuples from range of inner node
                     cTuple<T> tupleLowObj = cTuple<T> ((T*)innerNode->getTupleLowPtr(i), innerNode->metadata->n, true);
@@ -413,6 +415,22 @@ cBpTreeIteratorRange<T>* cBpTree<T, B>::searchRangeIterator(cTuple<T>& tupleLow,
     return new cBpTreeIteratorRange<T>(this->root, zAddrTupleLow, zAddrTupleHigh, this->metadata, this->getZTools());
 }
 template<typename T, typename B>
+cBpTreeIteratorRangeStack<T>* cBpTree<T, B>::searchRangeIteratorStack(cTuple<T>& tupleLow, cTuple<T>& tupleHigh) {
+    if (tupleLow.isGT(tupleHigh)) {
+        return nullptr;
+    }
+
+    char* zAddressLow = new char[this->metadata->zAddressBytes];
+    this->zTools->transformDataToZAddress((char*)tupleLow.getAttributes(), zAddressLow);
+    cTuple<T>* zAddrTupleLow = new cTuple<T>((T*)zAddressLow, this->metadata->n);
+
+    char* zAddressHigh = new char[this->metadata->zAddressBytes];
+    this->zTools->transformDataToZAddress((char*)tupleHigh.getAttributes(), zAddressHigh);
+    cTuple<T>* zAddrTupleHigh = new cTuple<T>((T*)zAddressHigh, this->metadata->n);
+
+    return new cBpTreeIteratorRangeStack<T>(this->root, zAddrTupleLow, zAddrTupleHigh, this->metadata, this->getZTools());
+}
+template<typename T, typename B>
 cBpTreeIteratorPoint<T>* cBpTree<T, B>::searchPointIterator(cTuple<T>& tuple){
     char * zAddress = new char[this->metadata->zAddressBytes];
     this->zTools->transformDataToZAddress((char*)tuple.getAttributes(), zAddress);
@@ -575,3 +593,19 @@ template<typename T, typename B>
 void cBpTree<T, B>::printMetadata(){
     this->metadata->printMetadata();
 }
+
+template<typename T, typename B>
+int cBpTree<T, B>::checkLinkLength() {
+	cNode<T>* current = this->root;
+	int linkLength = 0;
+    while (!current->isLeafNode()) {
+		cInnerNode<T>* innerNode = dynamic_cast<cInnerNode<T>*>(current);
+		current = innerNode->getChild(0);
+	}
+    while (current != nullptr) {
+		cLeafNode<T>* leafNode = dynamic_cast<cLeafNode<T>*>(current);
+		linkLength += 1;
+		current = leafNode->getNodeLink();
+	}
+	return linkLength;
+}   

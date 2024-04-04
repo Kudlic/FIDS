@@ -9,7 +9,7 @@ public:
     void printMetadata();
     double getBpTreeAllocatedBytes();
 
-private:
+protected:
     //Constants
     int n; // Number of attributes
     int n1; // Number of indexed attributes
@@ -48,6 +48,8 @@ private:
     template<typename T> friend class cLeafNode;
     template<typename T> friend class cInnerNode;
     template<typename T> friend class cBpTreeIterator;
+    template<typename T> friend class cBpTreeIteratorRange;
+    template<typename T> friend class cBpTreeIteratorRectangle;
 };
 
 template<typename TT>
