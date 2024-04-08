@@ -63,6 +63,7 @@ cTreeMetadata<TT>::cTreeMetadata(int n, int n1, int n2, int maxInnerNodeElements
     tupleCount(0),
     leafNodeCount(0),
     innerNodeCount(0),
+    innerElemCount(0),  
     nDataIsLeafNodeBShift(0),
     nDataCountBShift(4),
     nDataNodeLinkBShift(8) {

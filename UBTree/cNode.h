@@ -28,11 +28,14 @@ protected:
 template<typename T>
 cNode<T>::cNode(cTreeMetadata *metadata) : 
     metadata(metadata) {
+    // Implementation for constructor
+    this->nData = nullptr;
 }
 
 template<typename T>
 cNode<T>::~cNode() {
     // Implementation for destructor
+    this->metadata = nullptr;
 }
 
 template<typename T>

@@ -10,9 +10,11 @@
 #include "cBpTreeIteratorRange.h"
 #include "cBpTreeIteratorRangeStack.h"
 #include "cBpTreeIteratorPoint.h"
+#include "cBpTreeIteratorRangeStackBin.h"
 #include <stdlib.h>
 #include <math.h>
 #include <iomanip>
+#include <memory>
 
 //How will conversion to zAddresses work:
 // 1. cTuple will become a container for zAddress of type B instead of tuple of type T, all methods will stay the same otherwise
@@ -40,6 +42,7 @@ public:
     //int searchLinkedList(cTuple<T>& tupleLow, cTuple<T>& tupleHigh);
     cBpTreeIteratorRange<T>* searchRangeIterator(cTuple<T>& tupleLow, cTuple<T>& tupleHigh);
     cBpTreeIteratorRangeStack<T>* searchRangeIteratorStack(cTuple<T>& tupleLow, cTuple<T>& tupleHigh);
+    cBpTreeIteratorRangeStackBin<T>* searchRangeIteratorStackBin(cTuple<T>& tupleLow, cTuple<T>& tupleHigh);
     cBpTreeIteratorPoint<T>* searchPointIterator(cTuple<T>& tuple);
     void printTreeTuples();
     void printTreeHex();
@@ -80,7 +83,8 @@ cZAddrUtils* cBpTree<T, B>::getZTools(){
 template<typename T, typename B>
 bool cBpTree<T, B>::insert(cTuple<T>& tuple) {
     //TODO: dont forget to dealloc
-    char * zAddress = new char[this->metadata->zAddressBytes];
+    char* zAddress = new char[this->metadata->zAddressBytes];
+    cTuple<char> zAddrTuple = cTuple<char>((char*)zAddress, this->metadata->zAddressBytes); //This is a form of smart pointer, it will deallocate zAddress when it goes out of scope
     this->zTools->transformDataToZAddress((char*)tuple.getAttributes(), zAddress);
     //cTuple<T> zAddrTuple = cTuple<T>((T*)zAddress, this->metadata->n);
 
@@ -221,6 +225,7 @@ bool cBpTree<T, B>::remove(cTuple<T>& tuple){
 
     //TODO: dont forget to dealloc
     char * zAddress = new char[this->metadata->zAddressBytes];
+    cTuple<char> zAddrTuple = cTuple<char>((char*)zAddress, this->metadata->zAddressBytes); //This is a form of smart pointer, it will deallocate zAddress when it goes out of scope
     this->zTools->transformDataToZAddress((char*)tuple.getAttributes(), zAddress);
     //cTuple<T> * zAddrTuple = new cTuple<T>((T*)zAddress, this->metadata->zAddressBytes);
 
@@ -430,6 +435,24 @@ cBpTreeIteratorRangeStack<T>* cBpTree<T, B>::searchRangeIteratorStack(cTuple<T>&
 
     return new cBpTreeIteratorRangeStack<T>(this->root, zAddrTupleLow, zAddrTupleHigh, this->metadata, this->getZTools());
 }
+
+template<typename T, typename B>
+cBpTreeIteratorRangeStackBin<T>* cBpTree<T, B>::searchRangeIteratorStackBin(cTuple<T>& tupleLow, cTuple<T>& tupleHigh) {
+    if (tupleLow.isGT(tupleHigh)) {
+        return nullptr;
+    }
+
+    char* zAddressLow = new char[this->metadata->zAddressBytes];
+    this->zTools->transformDataToZAddress((char*)tupleLow.getAttributes(), zAddressLow);
+    cTuple<T>* zAddrTupleLow = new cTuple<T>((T*)zAddressLow, this->metadata->n);
+
+    char* zAddressHigh = new char[this->metadata->zAddressBytes];
+    this->zTools->transformDataToZAddress((char*)tupleHigh.getAttributes(), zAddressHigh);
+    cTuple<T>* zAddrTupleHigh = new cTuple<T>((T*)zAddressHigh, this->metadata->n);
+
+    return new cBpTreeIteratorRangeStackBin<T>(this->root, zAddrTupleLow, zAddrTupleHigh, this->metadata, this->getZTools());
+}
+
 template<typename T, typename B>
 cBpTreeIteratorPoint<T>* cBpTree<T, B>::searchPointIterator(cTuple<T>& tuple){
     char * zAddress = new char[this->metadata->zAddressBytes];

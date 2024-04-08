@@ -6,10 +6,10 @@
 #include "cTreeMetadata.h"
 
 #define uint unsigned int
-#define u_int64_t unsigned long long
-#define u_int32_t unsigned int
-#define u_int16_t unsigned short
-#define u_int8_t unsigned char
+#define uint64_t unsigned long long
+#define uint32_t unsigned int
+#define uint16_t unsigned short
+#define uint8_t unsigned char
 
 //BSR algorithms seem to count with not fitting the data
 //Can be normally sliced using pointer of another type. Have prepared masks to zero potential junk.
@@ -227,12 +227,12 @@ cZAddrUtils::cZAddrUtils(cTreeMetadata* metadata){
     if(metadata->n <= 8){
         isInRectangle = &cZAddrUtils::IsInRectangle_bsr_8;
         isIntersected = &cZAddrUtils::IsIntersected_bsr_64;
-        isIntersected_ZrQr_block = &cZAddrUtils::IsIntersected_ZrQr_block_bsr_32;
+        isIntersected_ZrQr_block = &cZAddrUtils::IsIntersected_ZrQr_block_bsr_8;
     }
     else if(metadata->n <= 32){
         isInRectangle = &cZAddrUtils::IsInRectangle_fast_8;
         isIntersected = &cZAddrUtils::IsIntersected_bsr_64;
-        isIntersected_ZrQr_block = &cZAddrUtils::IsIntersected_ZrQr_block_bsr_32;
+        isIntersected_ZrQr_block = &cZAddrUtils::IsIntersected_ZrQr_block_fast_8;
     }
     else if(metadata->n <= 64){
         isInRectangle = &cZAddrUtils::IsInRectangle_fast_32;
@@ -780,7 +780,17 @@ bool cZAddrUtils::IsIntersected_fast_64(char* za_ql1, char* za_qh1, char* za_ql2
 
 	return true;
 }
-void DetectFirstDiffBit(uint blockOrder, uint32_t a, uint32_t b, uint32_t &diffABBlockMask, unsigned long & bo)
+void DetectFirstDiffBit8(uint blockOrder, uint8_t a, uint8_t b, uint8_t& diffABBlockMask, unsigned long& bo)
+{
+	if (a != b)
+	{
+		uint8_t xor_a_b = a ^ b;
+		cZAddrUtils::BitScanReverse64asm(&bo, xor_a_b);
+
+		diffABBlockMask = ((uint64_t)1 << (bo)) - 1;
+	}
+}
+void DetectFirstDiffBit32(uint blockOrder, uint32_t a, uint32_t b, uint32_t &diffABBlockMask, unsigned long & bo)
 {
 	if (a != b)
 	{
@@ -800,12 +810,12 @@ void DetectFirstDiffBit64(uint blockOrder, uint64_t a, uint64_t b, uint64_t &dif
 		diffABBlockMask = ((uint64_t)1 << (bo))-1;
 	}
 }
-bool cZAddrUtils::IsIntersected_ZrQr_block_bsr_32(char* zi_a, char* zi_b, char* za_ql, char* za_qh){
-    // Type-casted arrays.
-	uint* zi_a_ui = (uint*)zi_a;
-	uint* zi_b_ui = (uint*)zi_b;
-	uint* za_ql_ui = (uint*)za_ql;
-	uint* za_qh_ui = (uint*)za_qh;
+bool cZAddrUtils::IsIntersected_ZrQr_block_bsr_8(char* zi_a, char* zi_b, char* za_ql, char* za_qh) {
+	// Type-casted arrays.
+	uint8_t* zi_a_ui = (uint8_t*)zi_a;
+	uint8_t* zi_b_ui = (uint8_t*)zi_b;
+	uint8_t* za_ql_ui = (uint8_t*)za_ql;
+	uint8_t* za_qh_ui = (uint8_t*)za_qh;
 
 	bool aFalse = false;
 	bool bFalse = false;
@@ -813,26 +823,26 @@ bool cZAddrUtils::IsIntersected_ZrQr_block_bsr_32(char* zi_a, char* zi_b, char* 
 	unsigned long pos;
 	int diffStep = -1;
 
-	uint diffABBlockMask;
-	uint diffABBlockMask1;
+	uint8_t diffABBlockMask;
+	uint8_t diffABBlockMask1;
 
 	unsigned long diffPos;
-	uint firstDiffMask;
+	uint8_t firstDiffMask;
 
-	uint maskH = mBsrDefaultMask32;
-	uint maskL = mBsrDefaultMask32;
+	uint8_t maskH = mBsrDefaultMask8;
+	uint8_t maskL = mBsrDefaultMask8;
 
-	uint half_a_block;
-	uint half_b_block;
+	uint8_t half_a_block;
+	uint8_t half_b_block;
 
 	// Tento jednoduchy test sice pomaha, ale nejsem si jisty, jestli to neni spis charakterem dotazu.
 	int firstDiffStep = -1;
-	for (int step = mBsrSteps32 - 1; step >= 0; step--)
+	for (int step = mBsrSteps8 - 1; step >= 0; step--)
 	{
-		uint a_block = zi_a_ui[step];
-		uint b_block = zi_b_ui[step];
-		uint ql_block = za_ql_ui[step];
-		uint qh_block = za_qh_ui[step];
+		uint8_t a_block = zi_a_ui[step];
+		uint8_t b_block = zi_b_ui[step];
+		uint8_t ql_block = za_ql_ui[step];
+		uint8_t qh_block = za_qh_ui[step];
 
 		if (a_block != b_block || b_block != ql_block || ql_block != qh_block)
 		{
@@ -847,10 +857,443 @@ bool cZAddrUtils::IsIntersected_ZrQr_block_bsr_32(char* zi_a, char* zi_b, char* 
 
 	for (int step = firstDiffStep; step >= 0; step--)
 	{
-		uint a_block = zi_a_ui[step];
-		uint b_block = zi_b_ui[step];
-		uint ql_block = za_ql_ui[step];
-		uint qh_block = za_qh_ui[step];
+		uint8_t a_block = zi_a_ui[step];
+		uint8_t b_block = zi_b_ui[step];
+		uint8_t ql_block = za_ql_ui[step];
+		uint8_t qh_block = za_qh_ui[step];
+		if (step == mBsrSteps8 - 1 && mBsrFirstZaBlockMask8 != mBsrDefaultMask8)
+		{
+			a_block &= mBsrFirstZaBlockMask8;
+			b_block &= mBsrFirstZaBlockMask8;
+			ql_block &= mBsrFirstZaBlockMask8;
+			qh_block &= mBsrFirstZaBlockMask8;
+		}
+
+		if (a_block != b_block)
+		{
+			diffStep = step;
+			DetectFirstDiffBit8(step, a_block, b_block, diffABBlockMask, diffPos);
+			diffABBlockMask1 = (diffABBlockMask << 1) + 1;
+			uint diffBitMask = 1 << diffPos;
+
+			half_a_block = a_block | diffABBlockMask; //...11111111101111111
+			half_b_block = half_a_block + 1;//...11111111110000000
+			//zacatek is in rectangle, který pořád běží nad společným prefixem (znegovana maska diff1)
+			while (BitScanReverse64asm(&pos, (ql_block ^ a_block) & maskL & ~diffABBlockMask1))
+			{
+				if (ql_block & (uint8_t)1 << pos)
+				{
+					return false;
+				}
+				else
+				{
+					maskL &= mBsrShiftMaskArray8[pos];
+				}
+			}
+
+			while (BitScanReverse64asm(&pos, (qh_block ^ a_block) & maskH & ~diffABBlockMask1))
+			{
+				if (a_block & (uint8_t)1 << pos)
+				{
+					return false;
+				}
+				else
+				{
+					maskH &= mBsrShiftMaskArray8[pos];
+				}
+			}
+			//konec is in rectangle
+			if (~ql_block & maskL & diffBitMask)
+			{
+				maskL &= mBsrShiftMaskArray8[diffPos];
+			}
+
+			if (ql_block & maskL & diffBitMask)
+			{
+				aFalse = true;
+			}
+
+			if (qh_block & maskH & diffBitMask)
+			{
+				maskH &= mBsrShiftMaskArray8[diffPos];
+			}
+
+			if (~qh_block & maskH & diffBitMask)
+			{
+				bFalse = true;
+			}
+
+			break;
+		}
+		//is in rectangle
+		while (BitScanReverse64asm(&pos, (ql_block ^ a_block) & maskL))
+		{
+			if ((uint8_t)1 << pos & ql_block)
+			{
+				return false;
+			}
+			else
+			{
+				maskL &= mBsrShiftMaskArray8[pos];
+			}
+		}
+
+		while (BitScanReverse64asm(&pos, (qh_block ^ a_block) & maskH))
+		{
+			if ((uint8_t)1 << pos & a_block)
+			{
+				return false;
+			}
+			else
+			{
+				maskH &= mBsrShiftMaskArray8[pos];
+			}
+		}
+
+		maskH = maskH << mRobShift8 | maskH >> mLobShift8;
+		maskL = maskL << mRobShift8 | maskL >> mLobShift8;
+		//konec is in rectangle
+	}
+
+	for (int step = diffStep; step >= 0; step--)
+	{
+		uint8_t a_block = zi_a_ui[step];
+		uint8_t b_block = zi_b_ui[step];
+		uint8_t ql_block_a = za_ql_ui[step];
+		uint8_t qh_block_b = za_qh_ui[step];
+
+		if (step == mBsrSteps8 - 1 && mBsrFirstZaBlockMask8 != mBsrDefaultMask8)
+		{
+			a_block &= mBsrFirstZaBlockMask8;
+			b_block &= mBsrFirstZaBlockMask8;
+			ql_block_a &= mBsrFirstZaBlockMask8;
+			qh_block_b &= mBsrFirstZaBlockMask8;
+		}
+
+		uint8_t qh_block_a;
+		uint8_t ql_block_b;
+
+		if (step == diffStep)
+		{
+			qh_block_a = qh_block_b & maskH | half_a_block & ~maskH;
+			ql_block_b = ql_block_a & maskL | half_b_block & ~maskL;
+		}
+		else
+		{
+			qh_block_a = qh_block_b | ~maskH;
+			ql_block_b = ql_block_a & maskL;
+		}
+
+		if (!aFalse)
+		{
+			if (qh_block_a < a_block)
+			{
+				aFalse = true;
+			}
+			else if (qh_block_a > a_block)
+			{
+				return true;
+			}
+		}
+		if (!bFalse)
+		{
+			if (ql_block_b > b_block)
+			{
+				bFalse = true;
+			}
+			else if (ql_block_b < b_block)
+			{
+				return true;
+			}
+		}
+
+		if (aFalse && bFalse)
+		{
+			return false;
+		}
+
+		maskH = maskH << mRobShift8 | maskH >> mLobShift8;
+		maskL = maskL << mRobShift8 | maskL >> mLobShift8;
+	}
+
+	return true;
+}
+bool cZAddrUtils::IsIntersected_ZrQr_block_fast_8(char* zi_a, char* zi_b, char* za_ql, char* za_qh)
+{
+	// Type-casted arrays.
+	uint8_t* zi_a_ui = (uint8_t*)zi_a;
+	uint8_t* zi_b_ui = (uint8_t*)zi_b;
+	uint8_t* za_ql_ui = (uint8_t*)za_ql;
+	uint8_t* za_qh_ui = (uint8_t*)za_qh;
+
+	bool aFalse = false;
+	bool bFalse = false;
+
+	unsigned long pos;
+	int diffStep = -1;
+
+	uint8_t diffABBlockMask;
+	uint8_t diffABBlockMask1;
+
+	unsigned long diffPos;
+	uint8_t firstDiffMask;
+
+	uint8_t half_a_block;
+	uint8_t half_b_block;
+
+	// Tento jednoduchy test sice pomaha, ale nejsem si jisty, jestli to neni spis charakterem dotazu.
+	int firstDiffStep = -1;
+	for (int step = mBsrSteps8 - 1; step >= 0; step--)
+	{
+		uint8_t a_block = zi_a_ui[step];
+		uint8_t b_block = zi_b_ui[step];
+		uint8_t ql_block = za_ql_ui[step];
+		uint8_t qh_block = za_qh_ui[step];
+
+		if (a_block != b_block || b_block != ql_block || ql_block != qh_block)
+		{
+			firstDiffStep = step;
+			break;
+		}
+	}
+	if (firstDiffStep == -1)
+	{
+		return true;
+	}
+
+
+	memset(mMaskArrayAL8 + firstDiffStep, 0xFF, Int8ByteLength * (mRob8 + 1));
+	memset(mMaskArrayAH8 + firstDiffStep, 0xFF, Int8ByteLength * (mRob8 + 1));
+	uint8_t* maskL = mMaskArrayAL8 + firstDiffStep;
+	uint8_t* maskH = mMaskArrayAH8 + firstDiffStep;
+
+
+	for (int step = firstDiffStep; step >= 0; step--)
+	{
+		uint8_t a_block = zi_a_ui[step];
+		uint8_t b_block = zi_b_ui[step];
+		uint8_t ql_block = za_ql_ui[step];
+		uint8_t qh_block = za_qh_ui[step];
+
+		if (step == mBsrSteps8 - 1 && mBsrFirstZaBlockMask8 != mBsrDefaultMask8)
+		{
+			a_block &= mBsrFirstZaBlockMask8;
+			b_block &= mBsrFirstZaBlockMask8;
+			ql_block &= mBsrFirstZaBlockMask8;
+			qh_block &= mBsrFirstZaBlockMask8;
+		}
+
+		if (a_block != b_block)
+		{
+			diffStep = step;
+			DetectFirstDiffBit8(step, a_block, b_block, diffABBlockMask, diffPos);
+			diffABBlockMask1 = (diffABBlockMask << 1) + 1;
+			uint8_t diffBitMask = 1 << diffPos;
+
+			half_a_block = a_block | diffABBlockMask;
+			half_b_block = half_a_block + 1;
+
+
+			if (ql_block & ~a_block & *maskL & ~diffABBlockMask1)
+			{
+				return false;
+			}
+
+			if (~qh_block & a_block & *maskH & ~diffABBlockMask1)
+			{
+				return false;
+			}
+
+			*maskL &= ~(~ql_block & a_block) | diffABBlockMask1;
+			*maskH &= ~(qh_block & ~a_block) | diffABBlockMask1;
+
+
+			if (~ql_block & *maskL & diffBitMask)
+			{
+				*maskL &= ~diffBitMask;
+			}
+
+			if (ql_block & *maskL & diffBitMask)
+			{
+				aFalse = true;
+			}
+
+			if (qh_block & *maskH & diffBitMask)
+			{
+				*maskH &= ~diffBitMask;
+			}
+
+			if (~qh_block & *maskH & diffBitMask)
+			{
+				bFalse = true;
+			}
+
+			break;
+		}
+
+		if (ql_block & ~a_block & *maskL)
+		{
+			return false;
+		}
+
+		if (~qh_block & a_block & *maskH)
+		{
+			return false;
+		}
+
+		*maskL &= ~(~ql_block & a_block);
+		*maskH &= ~(qh_block & ~a_block);
+
+		if (step > 0)
+		{
+			maskL--;
+			maskH--;
+
+			if (mRobShift8 < 8)
+			{
+				*maskL = *(maskL + mRob8) << mRobShift8 | *(maskL + mLob8) >> mLobShift8;
+				*maskH = *(maskH + mRob8) << mRobShift8 | *(maskH + mLob8) >> mLobShift8;
+			}
+			else
+			{
+				*maskL = *(maskL + mLob8) >> mLobShift8;
+				*maskH = *(maskH + mLob8) >> mLobShift8;
+			}
+		}
+	}
+
+	for (int step = diffStep; step >= 0; step--)
+	{
+		maskL = mMaskArrayAL8 + step;
+		maskH = mMaskArrayAH8 + step;
+
+		uint8_t a_block = zi_a_ui[step];
+		uint8_t b_block = zi_b_ui[step];
+		uint8_t ql_block_a = za_ql_ui[step];
+		uint8_t qh_block_b = za_qh_ui[step];
+
+		if (step == mBsrSteps8 - 1 && mBsrFirstZaBlockMask8 != mBsrDefaultMask8)
+		{
+			a_block &= mBsrFirstZaBlockMask8;
+			b_block &= mBsrFirstZaBlockMask8;
+			ql_block_a &= mBsrFirstZaBlockMask8;
+			qh_block_b &= mBsrFirstZaBlockMask8;
+		}
+
+		uint8_t qh_block_a;
+		uint8_t ql_block_b;
+
+		if (step == diffStep)
+		{
+			qh_block_a = qh_block_b & *maskH | half_a_block & ~*maskH;
+			ql_block_b = ql_block_a & *maskL | half_b_block & ~*maskL;
+		}
+		else
+		{
+			qh_block_a = qh_block_b | ~*maskH;
+			ql_block_b = ql_block_a & *maskL;
+		}
+
+		if (!aFalse)
+		{
+			if (qh_block_a < a_block)
+			{
+				aFalse = true;
+			}
+			else if (qh_block_a > a_block)
+			{
+				return true;
+			}
+		}
+
+		if (!bFalse)
+		{
+			if (ql_block_b > b_block)
+			{
+				bFalse = true;
+			}
+			else if (ql_block_b < b_block)
+			{
+				return true;
+			}
+		}
+
+		if (aFalse && bFalse)
+		{
+			return false;
+		}
+
+		if (step > 0)
+		{
+			maskL--;
+			maskH--;
+
+			if (mRobShift8 < 8)
+			{
+				*maskL = *(maskL + mRob8) << mRobShift8 | *(maskL + mLob8) >> mLobShift8;
+				*maskH = *(maskH + mRob8) << mRobShift8 | *(maskH + mLob8) >> mLobShift8;
+			}
+			else
+			{
+				*maskL = *(maskL + mLob8) >> mLobShift8;
+				*maskH = *(maskH + mLob8) >> mLobShift8;
+			}
+		}
+	}
+
+	return true;
+}
+bool cZAddrUtils::IsIntersected_ZrQr_block_bsr_32(char* zi_a, char* zi_b, char* za_ql, char* za_qh){
+    // Type-casted arrays.
+	uint32_t* zi_a_ui = (uint32_t*)zi_a;
+	uint32_t* zi_b_ui = (uint32_t*)zi_b;
+	uint32_t* za_ql_ui = (uint32_t*)za_ql;
+	uint32_t* za_qh_ui = (uint32_t*)za_qh;
+
+	bool aFalse = false;
+	bool bFalse = false;
+
+	unsigned long pos;
+	int diffStep = -1;
+
+	uint32_t diffABBlockMask;
+	uint32_t diffABBlockMask1;
+
+	unsigned long diffPos;
+	uint32_t firstDiffMask;
+
+	uint32_t maskH = mBsrDefaultMask32;
+	uint32_t maskL = mBsrDefaultMask32;
+
+	uint32_t half_a_block;
+	uint32_t half_b_block;
+
+	// Tento jednoduchy test sice pomaha, ale nejsem si jisty, jestli to neni spis charakterem dotazu.
+	int firstDiffStep = -1;
+	for (int step = mBsrSteps32 - 1; step >= 0; step--)
+	{
+		uint32_t a_block = zi_a_ui[step];
+		uint32_t b_block = zi_b_ui[step];
+		uint32_t ql_block = za_ql_ui[step];
+		uint32_t qh_block = za_qh_ui[step];
+
+		if (a_block != b_block || b_block != ql_block || ql_block != qh_block)
+		{
+			firstDiffStep = step;
+			break;
+		}
+	}
+	if (firstDiffStep == -1)
+	{
+		return true;
+	}
+
+	for (int step = firstDiffStep; step >= 0; step--)
+	{
+		uint32_t a_block = zi_a_ui[step];
+		uint32_t b_block = zi_b_ui[step];
+		uint32_t ql_block = za_ql_ui[step];
+		uint32_t qh_block = za_qh_ui[step];
         if (step == mBsrSteps32 - 1 && mBsrFirstZaBlockMask32 != mBsrDefaultMask32)
         {
             a_block &= mBsrFirstZaBlockMask32;
@@ -862,7 +1305,7 @@ bool cZAddrUtils::IsIntersected_ZrQr_block_bsr_32(char* zi_a, char* zi_b, char* 
 		if (a_block != b_block)
 		{
 			diffStep = step;
-			DetectFirstDiffBit(step, a_block, b_block, diffABBlockMask, diffPos);
+			DetectFirstDiffBit32(step, a_block, b_block, diffABBlockMask, diffPos);
 			diffABBlockMask1 = (diffABBlockMask << 1) + 1; 
 			uint diffBitMask = 1 << diffPos; 
 
@@ -871,7 +1314,7 @@ bool cZAddrUtils::IsIntersected_ZrQr_block_bsr_32(char* zi_a, char* zi_b, char* 
 			//zacatek is in rectangle, který pořád běží nad společným prefixem (znegovana maska diff1)
 			while (BitScanReverse64asm(&pos, (ql_block ^ a_block) & maskL & ~diffABBlockMask1))
 			{
-				if (ql_block & (uint)1 << pos)
+				if (ql_block & (uint32_t)1 << pos)
 				{
 					return false;
 				}
@@ -883,7 +1326,7 @@ bool cZAddrUtils::IsIntersected_ZrQr_block_bsr_32(char* zi_a, char* zi_b, char* 
 
 			while (BitScanReverse64asm(&pos, (qh_block ^ a_block) & maskH & ~diffABBlockMask1))
 			{
-				if (a_block & (uint)1 << pos)
+				if (a_block & (uint32_t)1 << pos)
 				{
 					return false;
 				}
@@ -918,7 +1361,7 @@ bool cZAddrUtils::IsIntersected_ZrQr_block_bsr_32(char* zi_a, char* zi_b, char* 
 		//is in rectangle
 		while (BitScanReverse64asm(&pos, (ql_block ^ a_block) & maskL))
 		{
-			if ((uint)1 << pos & ql_block)
+			if ((uint32_t)1 << pos & ql_block)
 			{
 				return false;
 			}
@@ -930,7 +1373,7 @@ bool cZAddrUtils::IsIntersected_ZrQr_block_bsr_32(char* zi_a, char* zi_b, char* 
 
 		while (BitScanReverse64asm(&pos, (qh_block ^ a_block) & maskH))
 		{
-			if ((uint)1 << pos & a_block)
+			if ((uint32_t)1 << pos & a_block)
 			{
 				return false;
 			}
@@ -947,10 +1390,10 @@ bool cZAddrUtils::IsIntersected_ZrQr_block_bsr_32(char* zi_a, char* zi_b, char* 
 
 	for (int step = diffStep; step >= 0; step--)
 	{
-		uint a_block = zi_a_ui[step];
-		uint b_block = zi_b_ui[step];
-		uint ql_block_a = za_ql_ui[step];
-		uint qh_block_b = za_qh_ui[step];
+		uint32_t a_block = zi_a_ui[step];
+		uint32_t b_block = zi_b_ui[step];
+		uint32_t ql_block_a = za_ql_ui[step];
+		uint32_t qh_block_b = za_qh_ui[step];
 
         if (step == mBsrSteps32 - 1 && mBsrFirstZaBlockMask32 != mBsrDefaultMask32)
         {
@@ -960,8 +1403,8 @@ bool cZAddrUtils::IsIntersected_ZrQr_block_bsr_32(char* zi_a, char* zi_b, char* 
             qh_block_b &= mBsrFirstZaBlockMask32;
         }
 
-		uint qh_block_a;
-		uint ql_block_b;
+		uint32_t qh_block_a;
+		uint32_t ql_block_b;
 
 		if (step == diffStep)
 		{
@@ -1011,10 +1454,10 @@ bool cZAddrUtils::IsIntersected_ZrQr_block_bsr_32(char* zi_a, char* zi_b, char* 
 bool cZAddrUtils::IsIntersected_ZrQr_block_fast_32(char* zi_a, char* zi_b, char* za_ql, char* za_qh)
 {
 	// Type-casted arrays.
-	uint* zi_a_ui = (uint*)zi_a;
-	uint* zi_b_ui = (uint*)zi_b;
-	uint* za_ql_ui = (uint*)za_ql;
-	uint* za_qh_ui = (uint*)za_qh;
+	uint32_t* zi_a_ui = (uint32_t*)zi_a;
+	uint32_t* zi_b_ui = (uint32_t*)zi_b;
+	uint32_t* za_ql_ui = (uint32_t*)za_ql;
+	uint32_t* za_qh_ui = (uint32_t*)za_qh;
 
 	bool aFalse = false;
 	bool bFalse = false;
@@ -1022,23 +1465,23 @@ bool cZAddrUtils::IsIntersected_ZrQr_block_fast_32(char* zi_a, char* zi_b, char*
 	unsigned long pos;
 	int diffStep = -1;
 
-	uint diffABBlockMask;
-	uint diffABBlockMask1;
+	uint32_t diffABBlockMask;
+	uint32_t diffABBlockMask1;
 
 	unsigned long diffPos;
-	uint firstDiffMask;
+	uint32_t firstDiffMask;
 
-	uint half_a_block;
-	uint half_b_block;
+	uint32_t half_a_block;
+	uint32_t half_b_block;
 
 	// Tento jednoduchy test sice pomaha, ale nejsem si jisty, jestli to neni spis charakterem dotazu.
     int firstDiffStep = -1;
 	for (int step = mBsrSteps32 - 1; step >= 0; step--)
 	{
-		uint a_block = zi_a_ui[step];
-		uint b_block = zi_b_ui[step];
-		uint ql_block = za_ql_ui[step];
-		uint qh_block = za_qh_ui[step];
+		uint32_t a_block = zi_a_ui[step];
+		uint32_t b_block = zi_b_ui[step];
+		uint32_t ql_block = za_ql_ui[step];
+		uint32_t qh_block = za_qh_ui[step];
 
 		if (a_block != b_block || b_block != ql_block || ql_block != qh_block)
 		{
@@ -1054,16 +1497,16 @@ bool cZAddrUtils::IsIntersected_ZrQr_block_fast_32(char* zi_a, char* zi_b, char*
 
 	memset(mMaskArrayAL32 + firstDiffStep, 0xFF, Int32ByteLength * (mRob32 + 1));
 	memset(mMaskArrayAH32 + firstDiffStep, 0xFF, Int32ByteLength * (mRob32 + 1));
-	uint* maskL = mMaskArrayAL32 + firstDiffStep;
-	uint* maskH = mMaskArrayAH32 + firstDiffStep;
+	uint32_t* maskL = mMaskArrayAL32 + firstDiffStep;
+	uint32_t* maskH = mMaskArrayAH32 + firstDiffStep;
 
 
 	for (int step = firstDiffStep; step >= 0; step--)
 	{
-		uint a_block = zi_a_ui[step];
-		uint b_block = zi_b_ui[step];
-		uint ql_block = za_ql_ui[step];
-		uint qh_block = za_qh_ui[step];
+		uint32_t a_block = zi_a_ui[step];
+		uint32_t b_block = zi_b_ui[step];
+		uint32_t ql_block = za_ql_ui[step];
+		uint32_t qh_block = za_qh_ui[step];
 
         if (step == mBsrSteps32 - 1 && mBsrFirstZaBlockMask32 != mBsrDefaultMask32)
         {
@@ -1076,9 +1519,9 @@ bool cZAddrUtils::IsIntersected_ZrQr_block_fast_32(char* zi_a, char* zi_b, char*
 		if (a_block != b_block)
 		{
 			diffStep = step;
-			DetectFirstDiffBit(step, a_block, b_block, diffABBlockMask, diffPos);
+			DetectFirstDiffBit32(step, a_block, b_block, diffABBlockMask, diffPos);
 			diffABBlockMask1 = (diffABBlockMask << 1) + 1;
-			uint diffBitMask = 1 << diffPos;
+			uint32_t diffBitMask = 1 << diffPos;
 
 			half_a_block = a_block | diffABBlockMask;
 			half_b_block = half_a_block + 1;
@@ -1157,10 +1600,10 @@ bool cZAddrUtils::IsIntersected_ZrQr_block_fast_32(char* zi_a, char* zi_b, char*
 		maskL = mMaskArrayAL32 + step;
 		maskH = mMaskArrayAH32 + step;
 
-		uint a_block = zi_a_ui[step];
-		uint b_block = zi_b_ui[step];
-		uint ql_block_a = za_ql_ui[step];
-		uint qh_block_b = za_qh_ui[step];
+		uint32_t a_block = zi_a_ui[step];
+		uint32_t b_block = zi_b_ui[step];
+		uint32_t ql_block_a = za_ql_ui[step];
+		uint32_t qh_block_b = za_qh_ui[step];
 
         if (step == mBsrSteps32 - 1 && mBsrFirstZaBlockMask32 != mBsrDefaultMask32)
         {
@@ -1170,8 +1613,8 @@ bool cZAddrUtils::IsIntersected_ZrQr_block_fast_32(char* zi_a, char* zi_b, char*
             qh_block_b &= mBsrFirstZaBlockMask32;
         }
 
-		uint qh_block_a;
-		uint ql_block_b;
+		uint32_t qh_block_a;
+		uint32_t ql_block_b;
 
 		if (step == diffStep)
 		{
@@ -1233,10 +1676,445 @@ bool cZAddrUtils::IsIntersected_ZrQr_block_fast_32(char* zi_a, char* zi_b, char*
 
 	return true;
 }
+bool cZAddrUtils::IsIntersected_ZrQr_block_bsr_64(char* zi_a, char* zi_b, char* za_ql, char* za_qh) {
+	// Type-casted arrays.
+	uint64_t* zi_a_ui = (uint64_t*)zi_a;
+	uint64_t* zi_b_ui = (uint64_t*)zi_b;
+	uint64_t* za_ql_ui = (uint64_t*)za_ql;
+	uint64_t* za_qh_ui = (uint64_t*)za_qh;
+
+	bool aFalse = false;
+	bool bFalse = false;
+
+	unsigned long pos;
+	int diffStep = -1;
+
+	uint64_t diffABBlockMask;
+	uint64_t diffABBlockMask1;
+
+	unsigned long diffPos;
+	uint64_t firstDiffMask;
+
+	uint64_t maskH = mBsrDefaultMask64;
+	uint64_t maskL = mBsrDefaultMask64;
+
+	uint64_t half_a_block;
+	uint64_t half_b_block;
+
+	// Tento jednoduchy test sice pomaha, ale nejsem si jisty, jestli to neni spis charakterem dotazu.
+	int firstDiffStep = -1;
+	for (int step = mBsrSteps64 - 1; step >= 0; step--)
+	{
+		uint64_t a_block = zi_a_ui[step];
+		uint64_t b_block = zi_b_ui[step];
+		uint64_t ql_block = za_ql_ui[step];
+		uint64_t qh_block = za_qh_ui[step];
+
+		if (a_block != b_block || b_block != ql_block || ql_block != qh_block)
+		{
+			firstDiffStep = step;
+			break;
+		}
+	}
+	if (firstDiffStep == -1)
+	{
+		return true;
+	}
+
+	for (int step = firstDiffStep; step >= 0; step--)
+	{
+		uint64_t a_block = zi_a_ui[step];
+		uint64_t b_block = zi_b_ui[step];
+		uint64_t ql_block = za_ql_ui[step];
+		uint64_t qh_block = za_qh_ui[step];
+		if (step == mBsrSteps64 - 1 && mBsrFirstZaBlockMask64 != mBsrDefaultMask64)
+		{
+			a_block &= mBsrFirstZaBlockMask64;
+			b_block &= mBsrFirstZaBlockMask64;
+			ql_block &= mBsrFirstZaBlockMask64;
+			qh_block &= mBsrFirstZaBlockMask64;
+		}
+
+		if (a_block != b_block)
+		{
+			diffStep = step;
+			DetectFirstDiffBit64(step, a_block, b_block, diffABBlockMask, diffPos);
+			diffABBlockMask1 = (diffABBlockMask << 1) + 1;
+			uint diffBitMask = 1 << diffPos;
+
+			half_a_block = a_block | diffABBlockMask; //...11111111101111111
+			half_b_block = half_a_block + 1;//...11111111110000000
+			//zacatek is in rectangle, který pořád běží nad společným prefixem (znegovana maska diff1)
+			while (BitScanReverse64asm(&pos, (ql_block ^ a_block) & maskL & ~diffABBlockMask1))
+			{
+				if (ql_block & (uint64_t)1 << pos)
+				{
+					return false;
+				}
+				else
+				{
+					maskL &= mBsrShiftMaskArray64[pos];
+				}
+			}
+
+			while (BitScanReverse64asm(&pos, (qh_block ^ a_block) & maskH & ~diffABBlockMask1))
+			{
+				if (a_block & (uint64_t)1 << pos)
+				{
+					return false;
+				}
+				else
+				{
+					maskH &= mBsrShiftMaskArray64[pos];
+				}
+			}
+			//konec is in rectangle
+			if (~ql_block & maskL & diffBitMask)
+			{
+				maskL &= mBsrShiftMaskArray64[diffPos];
+			}
+
+			if (ql_block & maskL & diffBitMask)
+			{
+				aFalse = true;
+			}
+
+			if (qh_block & maskH & diffBitMask)
+			{
+				maskH &= mBsrShiftMaskArray64[diffPos];
+			}
+
+			if (~qh_block & maskH & diffBitMask)
+			{
+				bFalse = true;
+			}
+
+			break;
+		}
+		//is in rectangle
+		while (BitScanReverse64asm(&pos, (ql_block ^ a_block) & maskL))
+		{
+			if ((uint64_t)1 << pos & ql_block)
+			{
+				return false;
+			}
+			else
+			{
+				maskL &= mBsrShiftMaskArray64[pos];
+			}
+		}
+
+		while (BitScanReverse64asm(&pos, (qh_block ^ a_block) & maskH))
+		{
+			if ((uint64_t)1 << pos & a_block)
+			{
+				return false;
+			}
+			else
+			{
+				maskH &= mBsrShiftMaskArray64[pos];
+			}
+		}
+
+		maskH = maskH << mRobShift64 | maskH >> mLobShift64;
+		maskL = maskL << mRobShift64 | maskL >> mLobShift64;
+		//konec is in rectangle
+	}
+
+	for (int step = diffStep; step >= 0; step--)
+	{
+		uint64_t a_block = zi_a_ui[step];
+		uint64_t b_block = zi_b_ui[step];
+		uint64_t ql_block_a = za_ql_ui[step];
+		uint64_t qh_block_b = za_qh_ui[step];
+
+		if (step == mBsrSteps64 - 1 && mBsrFirstZaBlockMask64 != mBsrDefaultMask64)
+		{
+			a_block &= mBsrFirstZaBlockMask64;
+			b_block &= mBsrFirstZaBlockMask64;
+			ql_block_a &= mBsrFirstZaBlockMask64;
+			qh_block_b &= mBsrFirstZaBlockMask64;
+		}
+
+		uint64_t qh_block_a;
+		uint64_t ql_block_b;
+
+		if (step == diffStep)
+		{
+			qh_block_a = qh_block_b & maskH | half_a_block & ~maskH;
+			ql_block_b = ql_block_a & maskL | half_b_block & ~maskL;
+		}
+		else
+		{
+			qh_block_a = qh_block_b | ~maskH;
+			ql_block_b = ql_block_a & maskL;
+		}
+
+		if (!aFalse)
+		{
+			if (qh_block_a < a_block)
+			{
+				aFalse = true;
+			}
+			else if (qh_block_a > a_block)
+			{
+				return true;
+			}
+		}
+		if (!bFalse)
+		{
+			if (ql_block_b > b_block)
+			{
+				bFalse = true;
+			}
+			else if (ql_block_b < b_block)
+			{
+				return true;
+			}
+		}
+
+		if (aFalse && bFalse)
+		{
+			return false;
+		}
+
+		maskH = maskH << mRobShift64 | maskH >> mLobShift64;
+		maskL = maskL << mRobShift64 | maskL >> mLobShift64;
+	}
+
+	return true;
+}
+
+bool cZAddrUtils::IsIntersected_ZrQr_block_fast_64(char* zi_a, char* zi_b, char* za_ql, char* za_qh)
+{
+	// Type-casted arrays.
+	uint64_t* zi_a_ui = (uint64_t*)zi_a;
+	uint64_t* zi_b_ui = (uint64_t*)zi_b;
+	uint64_t* za_ql_ui = (uint64_t*)za_ql;
+	uint64_t* za_qh_ui = (uint64_t*)za_qh;
+
+	bool aFalse = false;
+	bool bFalse = false;
+
+	unsigned long pos;
+	int diffStep = -1;
+
+	uint64_t diffABBlockMask;
+	uint64_t diffABBlockMask1;
+
+	unsigned long diffPos;
+	uint64_t firstDiffMask;
+
+	uint64_t half_a_block;
+	uint64_t half_b_block;
+
+	// Tento jednoduchy test sice pomaha, ale nejsem si jisty, jestli to neni spis charakterem dotazu.
+	int firstDiffStep = -1;
+	for (int step = mBsrSteps64 - 1; step >= 0; step--)
+	{
+		uint64_t a_block = zi_a_ui[step];
+		uint64_t b_block = zi_b_ui[step];
+		uint64_t ql_block = za_ql_ui[step];
+		uint64_t qh_block = za_qh_ui[step];
+
+		if (a_block != b_block || b_block != ql_block || ql_block != qh_block)
+		{
+			firstDiffStep = step;
+			break;
+		}
+	}
+	if (firstDiffStep == -1)
+	{
+		return true;
+	}
+
+
+	memset(mMaskArrayAL64 + firstDiffStep, 0xFF, Int64ByteLength * (mRob64 + 1));
+	memset(mMaskArrayAH64 + firstDiffStep, 0xFF, Int64ByteLength * (mRob64 + 1));
+	uint64_t* maskL = mMaskArrayAL64 + firstDiffStep;
+	uint64_t* maskH = mMaskArrayAH64 + firstDiffStep;
+
+
+	for (int step = firstDiffStep; step >= 0; step--)
+	{
+		uint64_t a_block = zi_a_ui[step];
+		uint64_t b_block = zi_b_ui[step];
+		uint64_t ql_block = za_ql_ui[step];
+		uint64_t qh_block = za_qh_ui[step];
+
+		if (step == mBsrSteps64 - 1 && mBsrFirstZaBlockMask64 != mBsrDefaultMask64)
+		{
+			a_block &= mBsrFirstZaBlockMask64;
+			b_block &= mBsrFirstZaBlockMask64;
+			ql_block &= mBsrFirstZaBlockMask64;
+			qh_block &= mBsrFirstZaBlockMask64;
+		}
+
+		if (a_block != b_block)
+		{
+			diffStep = step;
+			DetectFirstDiffBit64(step, a_block, b_block, diffABBlockMask, diffPos);
+			diffABBlockMask1 = (diffABBlockMask << 1) + 1;
+			uint64_t diffBitMask = (uint64_t)1 << diffPos;
+
+			half_a_block = a_block | diffABBlockMask;
+			half_b_block = half_a_block + 1;
+
+
+			if (ql_block & ~a_block & *maskL & ~diffABBlockMask1)
+			{
+				return false;
+			}
+
+			if (~qh_block & a_block & *maskH & ~diffABBlockMask1)
+			{
+				return false;
+			}
+
+			*maskL &= ~(~ql_block & a_block) | diffABBlockMask1;
+			*maskH &= ~(qh_block & ~a_block) | diffABBlockMask1;
+
+
+			if (~ql_block & *maskL & diffBitMask)
+			{
+				*maskL &= ~diffBitMask;
+			}
+
+			if (ql_block & *maskL & diffBitMask)
+			{
+				aFalse = true;
+			}
+
+			if (qh_block & *maskH & diffBitMask)
+			{
+				*maskH &= ~diffBitMask;
+			}
+
+			if (~qh_block & *maskH & diffBitMask)
+			{
+				bFalse = true;
+			}
+
+			break;
+		}
+
+		if (ql_block & ~a_block & *maskL)
+		{
+			return false;
+		}
+
+		if (~qh_block & a_block & *maskH)
+		{
+			return false;
+		}
+
+		*maskL &= ~(~ql_block & a_block);
+		*maskH &= ~(qh_block & ~a_block);
+
+		if (step > 0)
+		{
+			maskL--;
+			maskH--;
+
+			if (mRobShift64 < 64)
+			{
+				*maskL = *(maskL + mRob64) << mRobShift64 | *(maskL + mLob64) >> mLobShift64;
+				*maskH = *(maskH + mRob64) << mRobShift64 | *(maskH + mLob64) >> mLobShift64;
+			}
+			else
+			{
+				*maskL = *(maskL + mLob64) >> mLobShift64;
+				*maskH = *(maskH + mLob64) >> mLobShift64;
+			}
+		}
+	}
+
+	for (int step = diffStep; step >= 0; step--)
+	{
+		maskL = mMaskArrayAL64 + step;
+		maskH = mMaskArrayAH64 + step;
+
+		uint a_block = zi_a_ui[step];
+		uint b_block = zi_b_ui[step];
+		uint ql_block_a = za_ql_ui[step];
+		uint qh_block_b = za_qh_ui[step];
+
+		if (step == mBsrSteps64 - 1 && mBsrFirstZaBlockMask64 != mBsrDefaultMask64)
+		{
+			a_block &= mBsrFirstZaBlockMask64;
+			b_block &= mBsrFirstZaBlockMask64;
+			ql_block_a &= mBsrFirstZaBlockMask64;
+			qh_block_b &= mBsrFirstZaBlockMask64;
+		}
+
+		uint qh_block_a;
+		uint ql_block_b;
+
+		if (step == diffStep)
+		{
+			qh_block_a = qh_block_b & *maskH | half_a_block & ~*maskH;
+			ql_block_b = ql_block_a & *maskL | half_b_block & ~*maskL;
+		}
+		else
+		{
+			qh_block_a = qh_block_b | ~*maskH;
+			ql_block_b = ql_block_a & *maskL;
+		}
+
+		if (!aFalse)
+		{
+			if (qh_block_a < a_block)
+			{
+				aFalse = true;
+			}
+			else if (qh_block_a > a_block)
+			{
+				return true;
+			}
+		}
+
+		if (!bFalse)
+		{
+			if (ql_block_b > b_block)
+			{
+				bFalse = true;
+			}
+			else if (ql_block_b < b_block)
+			{
+				return true;
+			}
+		}
+
+		if (aFalse && bFalse)
+		{
+			return false;
+		}
+
+		if (step > 0)
+		{
+			maskL--;
+			maskH--;
+
+			if (mRobShift64 < 64)
+			{
+				*maskL = *(maskL + mRob64) << mRobShift64 | *(maskL + mLob64) >> mLobShift64;
+				*maskH = *(maskH + mRob64) << mRobShift64 | *(maskH + mLob64) >> mLobShift64;
+			}
+			else
+			{
+				*maskL = *(maskL + mLob64) >> mLobShift64;
+				*maskH = *(maskH + mLob64) >> mLobShift64;
+			}
+		}
+	}
+
+	return true;
+}
+
 //Following comparators must compare from MSB to LSB
 bool cZAddrUtils::isZAddrEQ(char* za1, char* za2){
-	u_int64_t* za1_ui = (u_int64_t*)za1;
-	u_int64_t* za2_ui = (u_int64_t*)za2;
+	uint64_t* za1_ui = (uint64_t*)za1;
+	uint64_t* za2_ui = (uint64_t*)za2;
 	int steps = mBsrSteps64-1;
 	if(mBsrFirstZaBlockMask64 != mBsrDefaultMask64){
 		if((za1_ui[steps] & mBsrFirstZaBlockMask64) != (za2_ui[steps] & mBsrFirstZaBlockMask64))
@@ -1250,8 +2128,8 @@ bool cZAddrUtils::isZAddrEQ(char* za1, char* za2){
 	return true;
 }
 bool cZAddrUtils::isZAddrLT(char* za1, char* za2){
-	u_int64_t* za1_ui = (u_int64_t*)za1;
-	u_int64_t* za2_ui = (u_int64_t*)za2;
+	uint64_t* za1_ui = (uint64_t*)za1;
+	uint64_t* za2_ui = (uint64_t*)za2;
 	int steps = mBsrSteps64-1;
 	if(mBsrFirstZaBlockMask64 != mBsrDefaultMask64){
 		if((za1_ui[steps] & mBsrFirstZaBlockMask64) < (za2_ui[steps] & mBsrFirstZaBlockMask64))
@@ -1269,8 +2147,8 @@ bool cZAddrUtils::isZAddrLT(char* za1, char* za2){
 	return false;
 }
 bool cZAddrUtils::isZAddrLEQT(char* za1, char* za2){
-	u_int64_t* za1_ui = (u_int64_t*)za1;
-	u_int64_t* za2_ui = (u_int64_t*)za2;
+	uint64_t* za1_ui = (uint64_t*)za1;
+	uint64_t* za2_ui = (uint64_t*)za2;
 	int steps = mBsrSteps64-1;
 	if(mBsrFirstZaBlockMask64 != mBsrDefaultMask64){
 		if((za1_ui[steps] & mBsrFirstZaBlockMask64) < (za2_ui[steps] & mBsrFirstZaBlockMask64))
@@ -1288,8 +2166,8 @@ bool cZAddrUtils::isZAddrLEQT(char* za1, char* za2){
 	return true;
 }
 bool cZAddrUtils::isZAddrGT(char* za1, char* za2){
-	u_int64_t* za1_ui = (u_int64_t*)za1;
-	u_int64_t* za2_ui = (u_int64_t*)za2;
+	uint64_t* za1_ui = (uint64_t*)za1;
+	uint64_t* za2_ui = (uint64_t*)za2;
 	int steps = mBsrSteps64-1;
 	if(mBsrFirstZaBlockMask64 != mBsrDefaultMask64){
 		if((za1_ui[steps] & mBsrFirstZaBlockMask64) > (za2_ui[steps] & mBsrFirstZaBlockMask64))
@@ -1307,8 +2185,8 @@ bool cZAddrUtils::isZAddrGT(char* za1, char* za2){
 	return false;
 }
 bool cZAddrUtils::isZAddrGEQT(char* za1, char* za2){
-	u_int64_t* za1_ui = (u_int64_t*)za1;
-	u_int64_t* za2_ui = (u_int64_t*)za2;
+	uint64_t* za1_ui = (uint64_t*)za1;
+	uint64_t* za2_ui = (uint64_t*)za2;
 	int steps = mBsrSteps64-1;
 	if(mBsrFirstZaBlockMask64 != mBsrDefaultMask64){
 		if((za1_ui[steps] & mBsrFirstZaBlockMask64) > (za2_ui[steps] & mBsrFirstZaBlockMask64))
@@ -1327,8 +2205,8 @@ bool cZAddrUtils::isZAddrGEQT(char* za1, char* za2){
 }
 //return -1 if LT, 0 if EQ, 1 if GT
 int cZAddrUtils::cmpZAddress(char* za1, char* za2){
-	u_int64_t* za1_ui = (u_int64_t*)za1;
-	u_int64_t* za2_ui = (u_int64_t*)za2;
+	uint64_t* za1_ui = (uint64_t*)za1;
+	uint64_t* za2_ui = (uint64_t*)za2;
 	int steps = mBsrSteps64-1;
 	if(mBsrFirstZaBlockMask64 != mBsrDefaultMask64){
 		if((za1_ui[steps] & mBsrFirstZaBlockMask64) > (za2_ui[steps] & mBsrFirstZaBlockMask64))

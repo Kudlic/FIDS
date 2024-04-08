@@ -38,6 +38,7 @@ cBpTreeIteratorPoint<T>::cBpTreeIteratorPoint(cNode<T>* root, cTuple<T>* zAddrTu
 template<typename T>
 cBpTreeIteratorPoint<T>::~cBpTreeIteratorPoint(){
     delete resultContainer;
+    delete zAddress;
 }
 
 template<typename T>

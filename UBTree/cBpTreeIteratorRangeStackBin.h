@@ -2,16 +2,22 @@
 #pragma once
 #include "cBpTreeIterator.h"
 #include "cStack.h"
+#include <stack>
 
 template<typename T>
 class cBpTreeIteratorRangeStackBin : public cBpTreeIterator<T> {
+private:
+    struct halvingRange {
+        cNode<T>* node;
+        int lowIndex;
+        int highIndex;
+    };
 protected:
     cTuple<T>* zAddressLow;
     cTuple<T>* zAddressHigh;
     //TODO: save/load state of iterator
 
-    cStack<cNode<T>*>* nodeStack;
-
+    std::stack<halvingRange>* stack;
     cTuple<T>* resultContainer;
     bool init() override;
 public:
@@ -27,195 +33,309 @@ cBpTreeIteratorRangeStackBin<T>::cBpTreeIteratorRangeStackBin(cNode<T>* root, cT
     cBpTreeIterator<T>(root, metadata, zTools),
     zAddressLow(zAddrTupLow),
     zAddressHigh(zAddrTupHigh)
-{
-    this->nodeStack = new cStack<cNode<T>*>(this->metadata->order);
-    nodeStack->push(root, 0);
-    int direction = 1;
+{   
+    this->initIsIntersectedCalls = 0;
+    this->initRectangeCalls = 0;
+    this->isIntersectedCalls = 0;
+    this->rectangleCalls = 0;
+    this->stack = new std::stack<halvingRange>;
     this->init();
-    resultContainer = new cTuple<T>(metadata->n, true);
+    this->resultContainer = new cTuple<T>(metadata->n, true);
 };
 template<typename T>
 cBpTreeIteratorRangeStackBin<T>::~cBpTreeIteratorRangeStackBin() {
     delete resultContainer;
     delete zAddressLow;
     delete zAddressHigh;
-    delete nodeStack;
+    delete stack;
 }
 
 template<typename T>
 bool cBpTreeIteratorRangeStackBin<T>::init() {
-    //TODO: Fix case, where range can be intersected, but no tuples of the range are in rectangle
-    //TOMBYDO: Rethink stack, you could save up to order-1 * innerNodeSize + 1 * leafNodeSize
-    // This way stack could schedule all nodes needed to examine and nodes could be added
-    // to stack using binary halving of intervals, so that we can skip whole intervals
+    //New stack works as follows:
+    //  Root is pushed to stack with nodePos = -1
+    //  Before diving into any innerNode, all innerNodes must be tested for intersection
+    //  If innerNode is intersected, it is pushed to stack as (parent, posInParent) -> this is therefore link to either a child LeafNode or child InnerNode
+    //  If leafNode is inRectangle, it is pushed to stack as (leafNode, posInParent) -> this is a link to Tuple in LeafNode
+    //  
+    //  Intersection is tested utilizing binary halving of intervals, where we split interval in half and test both for intersection
+    //  If we are processing leafNode, test intersection for halves similarly to innerNode
+    //  When testing a single point, we test if it is in rectangle and push it to stack with position if is. NodeStack will therefore 
     this->initIsIntersectedCalls = 0;
     this->initRectangeCalls = 0;
-    while (!nodeStack->isEmpty()) {
-        int position = 0;
-        cNode<T>* node = nodeStack->pop(position);
+    this->stack->push({ this->root, 0, this->root->getCount()-1 });
+    bool quit = false;
+    while (!stack->empty() && !quit) {
+        halvingRange range = stack->top();
+        stack->pop();
+        cNode<T>* node = range.node;
+        int low = range.lowIndex;
+        int high = range.highIndex;
+		int halfPosition = (low + high) / 2;
+
         bool isLeaf = node->isLeafNode();
         int count = node->getCount();
+
         if (isLeaf) {
             //find index of first element to copy
             cLeafNode<T>* leafNode = dynamic_cast<cLeafNode<T>*>(node);
-            for (; position < count; position++) {
+            if(low == high) {//if single point
+				this->initRectangeCalls++;
+				if (this->zTools->IsInRectangle(leafNode->getElementPtr(low), (char*)zAddressLow->getAttributes(), (char*)zAddressHigh->getAttributes())) {
+					stack->push({ node, low, low });//Push only if valid. Elements with high high are verified in rectangle
+                    quit = true;
+                    break;
+				}
+                else {
+                    //error, impossible to have single point not in rectangle
+                    std::cerr << "cBpTreeIteratorRangeStack::init() - error, single point not in rectangle" << std::endl;
+                    quit = true;
+                    break;
+                }
+			}
+            //here we have to check if left and right are same before, since we only have one element on one index
+            if (halfPosition+1 < high) {//if not single point
+				this->initIsIntersectedCalls++;
+				if (this->zTools->IsIntersected_ZrQr_block(leafNode->getElementPtr(halfPosition + 1), leafNode->getElementPtr(high), (char*)zAddressLow->getAttributes(), (char*)zAddressHigh->getAttributes())) {
+                    stack->push({ node, halfPosition + 1, high }); //If we reached point where left and right are same, we can push it to stack
+				}
+			}
+            else {//if single point
                 this->initRectangeCalls++;
-                if (this->zTools->IsInRectangle(leafNode->getElementPtr(position), (char*)zAddressLow->getAttributes(), (char*)zAddressHigh->getAttributes())) {
-                    nodeStack->push(node, position);//push current node back to stack with starting position
-                    return true;
+                if(this->zTools->IsInRectangle(leafNode->getElementPtr(high), (char*)zAddressLow->getAttributes(), (char*)zAddressHigh->getAttributes())) {
+                    stack->push({ node, high, high });//Push only if valid. Elements with high high are verified in rectangle
+				}
+            }
+            if (low < halfPosition) {//if not single point
+                this->initIsIntersectedCalls++;
+                if (this->zTools->IsIntersected_ZrQr_block(leafNode->getElementPtr(low), leafNode->getElementPtr(halfPosition), (char*)zAddressLow->getAttributes(), (char*)zAddressHigh->getAttributes())) {
+                    stack->push({ node, low, halfPosition }); //If we reached point where left and right are same, we can push it to stack
                 }
             }
+            else {//if single point
+                this->initRectangeCalls++;
+				if (this->zTools->IsInRectangle(leafNode->getElementPtr(low), (char*)zAddressLow->getAttributes(), (char*)zAddressHigh->getAttributes())) {
+                    stack->push({ node, low, low });//Push only if valid. Elements with high high are verified in rectangle
+				}
+			}
         }
         else {
             cInnerNode<T>* innerNode = dynamic_cast<cInnerNode<T>*>(node);
-            for (; position < count; position++) {
-                this->initIsIntersectedCalls++;
-                if (this->zTools->IsIntersected_ZrQr_block(innerNode->getTupleLowPtr(position), innerNode->getTupleHighPtr(position), (char*)zAddressLow->getAttributes(), (char*)zAddressHigh->getAttributes())) {
-                    nodeStack->push(node, position);//push current node back to stack with position we dive in at
-                    nodeStack->push(innerNode->getChild(position), 0);//push child to stack at starting position
-                    break;
-                }
+            //Insertion in reverse order, so we can pop in correct order
+			this->initIsIntersectedCalls++;
+            if(this->zTools->IsIntersected_ZrQr_block(innerNode->getTupleLowPtr(halfPosition+1), innerNode->getTupleHighPtr(high), (char*)zAddressLow->getAttributes(), (char*)zAddressHigh->getAttributes())) {
+                if (halfPosition + 1 < high)
+                    stack->push({ innerNode, halfPosition + 1, high });
+                else
+                    stack->push({ innerNode->getChild(high), 0, innerNode->getChild(high)->getCount() - 1 }); //If we reached point where left and right are same, we can push it to stack
             }
-        }
-        if (position == count) {
-            //no more elements in leaf node, continue to next node
-            if (!nodeStack->isEmpty()) {
-                int tmpPos = 0;
-                cNode<T>* tmpNode = nodeStack->pop(tmpPos);
-                nodeStack->push(tmpNode, tmpPos + 1);
-            }
-            continue;
+            this->initIsIntersectedCalls++;
+            if (this->zTools->IsIntersected_ZrQr_block(innerNode->getTupleLowPtr(low), innerNode->getTupleHighPtr(halfPosition), (char*)zAddressLow->getAttributes(), (char*)zAddressHigh->getAttributes())) {
+                if (low < halfPosition)
+                    stack->push({ innerNode, low, halfPosition });
+                else 
+                    stack->push({ innerNode->getChild(low), 0, innerNode->getChild(low)->getCount() - 1 }); //If we reached point where left and right are same, we can push it to stack
+			}
         }
     }
-    return false;
+    return true;
 }
 
 template<typename T>
 bool cBpTreeIteratorRangeStackBin<T>::hasNext() {
     //when we went past end or we are at nullptr
-    return !nodeStack->isEmpty();
+    return !stack->empty();
 }
 template<typename T>
 cTuple<T>* cBpTreeIteratorRangeStackBin<T>::next() {
-    if (nodeStack->isEmpty()) {
+    if (stack->empty()) {
         return nullptr;
     }
-    int index = 0;
-    cNode<T>* currentNode = nodeStack->pop(index);
-    bool isLeaf = currentNode->isLeafNode();
-    nodeStack->push(currentNode, index + 1); //push current node back to stack with next element, so we start search from it further
-    //Setting result
-    if (isLeaf) {
-        resultContainer->setTuple(
-            (T*)dynamic_cast<cLeafNode<T>*>(currentNode)->getElementPtr(index),
-            this->metadata->n);
-    }
-    else {
-        //error, we should always start at leaf node with next element
-        std::cerr << "cBpTreeIteratorRangeStack::next() - error, inner node should not be next element" << std::endl;
-        return nullptr;
-    }
-    //Find next element
+    //First extract 1st element in stack, which should always be in rectangle
+    halvingRange resultRange = stack->top();
+    stack->pop();
+    cNode<T>* resultNode = resultRange.node;
+    if(resultNode->isLeafNode() && (resultRange.lowIndex == resultRange.highIndex))
+        {
+		resultContainer->setTuple(
+			(T*)dynamic_cast<cLeafNode<T>*>(resultNode)->getElementPtr(resultRange.lowIndex),
+			this->metadata->n);
+	}
+    else{
+		//error, we should always start at leaf node with next element
+		std::cerr << "cBpTreeIteratorRangeStack::next() - error, inner node should not be next element" << std::endl;
+		return nullptr;
+	}
     bool quit = false;
-    while (!nodeStack->isEmpty() && !quit) {
-        int position = 0;
-        cNode<T>* node = nodeStack->pop(position);
+    //Process nodes until next suitable element
+    while (!stack->empty() && !quit) {
+        halvingRange range = stack->top();
+        stack->pop();
+        cNode<T>* node = range.node;
+        int low = range.lowIndex;
+        int high = range.highIndex;
+        int halfPosition = (low + high) / 2;
+
         bool isLeaf = node->isLeafNode();
         int count = node->getCount();
 
         if (isLeaf) {
-            //find index of first element to copy
             cLeafNode<T>* leafNode = dynamic_cast<cLeafNode<T>*>(node);
-            for (; position < count; position++) {
+            //Element in rectangle found, stop in there
+			quit = true;
+            break;
+            
+            if(halfPosition+1 < high){
+                this->isIntersectedCalls++;
+                if (this->zTools->IsIntersected_ZrQr_block(leafNode->getElementPtr(halfPosition + 1), leafNode->getElementPtr(high), (char*)zAddressLow->getAttributes(), (char*)zAddressHigh->getAttributes())) {
+                    stack->push({ node, halfPosition + 1, high }); //If we reached point where left and right are same, we can push it to stack
+                }
+            }
+            else {//if single point
                 this->rectangleCalls++;
-                if (this->zTools->IsInRectangle(leafNode->getElementPtr(position), (char*)zAddressLow->getAttributes(), (char*)zAddressHigh->getAttributes())) {
-                    nodeStack->push(node, position);//push current node back to stack with starting position
-                    quit = true;
-                    break;
+                if (this->zTools->IsInRectangle(leafNode->getElementPtr(high), (char*)zAddressLow->getAttributes(), (char*)zAddressHigh->getAttributes())) {
+                    stack->push({ node, high, high });//Push only if valid. Elements with high high are verified in rectangle
+                }
+            }
+
+            if (low < halfPosition) {//if not single point
+                this->isIntersectedCalls++;
+                if (this->zTools->IsIntersected_ZrQr_block(leafNode->getElementPtr(low), leafNode->getElementPtr(halfPosition), (char*)zAddressLow->getAttributes(), (char*)zAddressHigh->getAttributes())) {
+                    stack->push({ node, low, halfPosition }); //If we reached point where left and right are same, we can push it to stack
+                }
+            }
+            else {//if single point
+                this->initRectangeCalls++;
+                if (this->zTools->IsInRectangle(leafNode->getElementPtr(low), (char*)zAddressLow->getAttributes(), (char*)zAddressHigh->getAttributes())) {
+                    stack->push({ node, low, low });//Push only if valid. Elements with high high are verified in rectangle
                 }
             }
         }
         else {
             cInnerNode<T>* innerNode = dynamic_cast<cInnerNode<T>*>(node);
-            for (; position < count; position++) {
-                this->isIntersectedCalls++;
-                if (this->zTools->IsIntersected_ZrQr_block(innerNode->getTupleLowPtr(position), innerNode->getTupleHighPtr(position), (char*)zAddressLow->getAttributes(), (char*)zAddressHigh->getAttributes())) {
-                    nodeStack->push(node, position);//push current node back to stack with position we dive in at
-                    nodeStack->push(innerNode->getChild(position), 0);//push child to stack at starting position
-                    break;
-                }
-            }
-        }
-        //In case we reached end of a node, we should not have pushed anything to stack,
-        //thus we should move to next node in parent
-        if (position == count) {
-            //no more elements in leaf node, continue to next node
-            if (!nodeStack->isEmpty()) {
-                int tmpPos = 0;
-                cNode<T>* tmpNode = nodeStack->pop(tmpPos);
-                nodeStack->push(tmpNode, tmpPos + 1);
-            }
-            continue;
+			//Insertion in reverse order, so we can pop in correct order
+			this->isIntersectedCalls++;
+			if (this->zTools->IsIntersected_ZrQr_block(innerNode->getTupleLowPtr(halfPosition + 1), innerNode->getTupleHighPtr(high), (char*)zAddressLow->getAttributes(), (char*)zAddressHigh->getAttributes())) {
+                if (halfPosition + 1 < high)
+                    stack->push({ innerNode, halfPosition + 1, high });
+                else
+                    stack->push({ innerNode->getChild(high), 0, innerNode->getChild(high)->getCount() - 1 }); //If we reached point where left and right are same, we can push it to stack
+			}
+			this->isIntersectedCalls++;
+			if (this->zTools->IsIntersected_ZrQr_block(innerNode->getTupleLowPtr(low), innerNode->getTupleHighPtr(halfPosition), (char*)zAddressLow->getAttributes(), (char*)zAddressHigh->getAttributes())) {
+                if (low < halfPosition)
+                    stack->push({ innerNode, low, halfPosition });
+                else
+                    stack->push({ innerNode->getChild(low), 0, innerNode->getChild(low)->getCount() - 1 }); //If we reached point where left and right are same, we can push it to stack
+			}
+            /*
+            for(int i = high; i >= low; i--){
+				this->isIntersectedCalls++;
+				if (this->zTools->IsIntersected_ZrQr_block(innerNode->getTupleLowPtr(i), innerNode->getTupleHighPtr(i), (char*)zAddressLow->getAttributes(), (char*)zAddressHigh->getAttributes())) {
+					stack->push({ innerNode->getChild(i), 0, innerNode->getChild(i)->getCount() - 1 });
+				}
+			}
+            */
         }
     }
-
     return resultContainer;
 }
 
 template<typename T>
 int cBpTreeIteratorRangeStackBin<T>::skip(int count) {
     int skipped = 0;
-    while ((count == -1 || skipped < count) && !nodeStack->isEmpty()) {
+    if (stack->empty()) {
+        return skipped;
+    }
+    while (!stack->empty() && (skipped < count || count == -1)) {
+        //First extract 1st element in stack, which should always be in rectangle
+        halvingRange resultRange = stack->top();
+        stack->pop();
         skipped++;
-        int tmpPos = 0;
-        cNode<T>* tmpNode = nodeStack->pop(tmpPos);
-        nodeStack->push(tmpNode, tmpPos + 1);
         bool quit = false;
-        while (!nodeStack->isEmpty() && !quit) {
-            int position = 0;
-            cNode<T>* node = nodeStack->pop(position);
+        
+        //Process nodes until next suitable element
+        while (!stack->empty() && !quit) {
+            halvingRange range = stack->top();
+            stack->pop();
+            cNode<T>* node = range.node;
+            int low = range.lowIndex;
+            int high = range.highIndex;
+            int halfPosition = (low + high) / 2;
+
             bool isLeaf = node->isLeafNode();
-            int nodeCount = node->getCount();
+            int count = node->getCount();
+
             if (isLeaf) {
-                //find index of first element to copy
                 cLeafNode<T>* leafNode = dynamic_cast<cLeafNode<T>*>(node);
-                for (; position < nodeCount; position++) {
+                //Element in rectangle found, stop in there
+                if (low == high) {
                     this->rectangleCalls++;
-                    if (this->zTools->IsInRectangle(leafNode->getElementPtr(position), (char*)zAddressLow->getAttributes(), (char*)zAddressHigh->getAttributes())) {
-                        nodeStack->push(node, position);//push current node back to stack with starting position
+                    if (this->zTools->IsInRectangle(leafNode->getElementPtr(low), (char*)zAddressLow->getAttributes(), (char*)zAddressHigh->getAttributes())) {
+                        stack->push({ node, low, low });//Push only if valid. Elements with high high are verified in rectangle
                         quit = true;
                         break;
+                    }
+                    else {
+                        //error, impossible to have single point not in rectangle
+                        std::cerr << "cBpTreeIteratorRangeStack::init() - error, single point not in rectangle" << std::endl;
+                        quit = true;
+                        break;
+                    }
+                }
+
+                if (halfPosition + 1 < high) {
+                    this->isIntersectedCalls++;
+                    if (this->zTools->IsIntersected_ZrQr_block(leafNode->getElementPtr(halfPosition + 1), leafNode->getElementPtr(high), (char*)zAddressLow->getAttributes(), (char*)zAddressHigh->getAttributes())) {
+                        stack->push({ node, halfPosition + 1, high }); //If we reached point where left and right are same, we can push it to stack
+                    }
+                }
+                else {//if single point
+                    this->rectangleCalls++;
+                    if (this->zTools->IsInRectangle(leafNode->getElementPtr(high), (char*)zAddressLow->getAttributes(), (char*)zAddressHigh->getAttributes())) {
+                        stack->push({ node, high, high });//Push only if valid. Elements with high high are verified in rectangle
+                    }
+                }
+
+                if (low < halfPosition) {//if not single point
+                    this->isIntersectedCalls++;
+                    if (this->zTools->IsIntersected_ZrQr_block(leafNode->getElementPtr(low), leafNode->getElementPtr(halfPosition), (char*)zAddressLow->getAttributes(), (char*)zAddressHigh->getAttributes())) {
+                        stack->push({ node, low, halfPosition }); //If we reached point where left and right are same, we can push it to stack
+                    }
+                }
+                else {//if single point
+                    this->initRectangeCalls++;
+                    if (this->zTools->IsInRectangle(leafNode->getElementPtr(low), (char*)zAddressLow->getAttributes(), (char*)zAddressHigh->getAttributes())) {
+                        stack->push({ node, low, low });//Push only if valid. Elements with high high are verified in rectangle
                     }
                 }
             }
             else {
                 cInnerNode<T>* innerNode = dynamic_cast<cInnerNode<T>*>(node);
-                for (; position < nodeCount; position++) {
+                //Insertion in reverse order, so we can pop in correct order
+                this->isIntersectedCalls++;
+                if (this->zTools->IsIntersected_ZrQr_block(innerNode->getTupleLowPtr(halfPosition + 1), innerNode->getTupleHighPtr(high), (char*)zAddressLow->getAttributes(), (char*)zAddressHigh->getAttributes())) {
+                    if (halfPosition + 1 < high)
+                        stack->push({ innerNode, halfPosition + 1, high });
+                    else
+                        stack->push({ innerNode->getChild(high), 0, innerNode->getChild(high)->getCount() - 1 }); //If we reached point where left and right are same, we can push it to stack
+                }
+                this->isIntersectedCalls++;
+                if (this->zTools->IsIntersected_ZrQr_block(innerNode->getTupleLowPtr(low), innerNode->getTupleHighPtr(halfPosition), (char*)zAddressLow->getAttributes(), (char*)zAddressHigh->getAttributes())) {
+                    if (low < halfPosition)
+                        stack->push({ innerNode, low, halfPosition });
+                    else
+                        stack->push({ innerNode->getChild(low), 0, innerNode->getChild(low)->getCount() - 1 }); //If we reached point where left and right are same, we can push it to stack
+                }
+                /*
+                for (int i = high; i >= low; i--) {
                     this->isIntersectedCalls++;
-                    if (this->zTools->IsIntersected_ZrQr_block(
-                        innerNode->getTupleLowPtr(position),
-                        innerNode->getTupleHighPtr(position),
-                        (char*)zAddressLow->getAttributes(),
-                        (char*)zAddressHigh->getAttributes()
-                    )
-                        )
-                    {
-                        nodeStack->push(node, position);//push current node back to stack with position we dive in at
-                        nodeStack->push(innerNode->getChild(position), 0);//push child to stack at starting position
-                        break;
-                    }
+					if (this->zTools->IsIntersected_ZrQr_block(innerNode->getTupleLowPtr(i), innerNode->getTupleHighPtr(i), (char*)zAddressLow->getAttributes(), (char*)zAddressHigh->getAttributes())) {
+						stack->push({ innerNode->getChild(i), 0, innerNode->getChild(i)->getCount() - 1 });
+					}
+				
                 }
-            }
-            //In case we reached end of a node, we should not have pushed anything to stack,
-            //thus we should move to next node in parent
-            if (position >= nodeCount) {
-                //no more elements in leaf node, continue to next node
-                if (!nodeStack->isEmpty()) {
-                    int tmpPos = 0;
-                    cNode<T>* tmpNode = nodeStack->pop(tmpPos);
-                    nodeStack->push(tmpNode, tmpPos + 1);
-                }
-                continue;
+                */
             }
         }
     }
@@ -224,9 +344,12 @@ int cBpTreeIteratorRangeStackBin<T>::skip(int count) {
 
 template<typename T>
 bool cBpTreeIteratorRangeStackBin<T>::reset() {
-    delete nodeStack;
-    nodeStack = new cStack<cNode<T>*>(this->metadata->order);
-    nodeStack->push(this->root, 0);
+    delete this->stack;
+    this->stack = new std::stack<halvingRange>;
+    this->initIsIntersectedCalls = 0;
+    this->initRectangeCalls = 0;
+    this->isIntersectedCalls = 0;
+    this->rectangleCalls = 0;
     this->init();
 
     return true;

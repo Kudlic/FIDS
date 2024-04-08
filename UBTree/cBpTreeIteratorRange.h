@@ -229,11 +229,17 @@ int cBpTreeIteratorRange<T>::skip(int count){
         skipped++;
         while(1){//prepares next valid element
             index++;
+            if (currentNode == endNode) {
+                int k = 0;
+            }
             if(index > currentMaxIndex && currentNode != endNode){
                 //TODO: make a loop that will take first and last element and attempt isIntersectedZrQr to know, whether to outright select next linked block
                 int currCount = 0;
                 do{
                     currentNode = currentNode->getNodeLink();
+                    if (currentNode == endNode) {
+                        int k = 0;
+                    }
                     currCount = currentNode->getCount();
                     if(currentNode == endNode){
                         currentMaxIndex = endIndex;
@@ -250,7 +256,7 @@ int cBpTreeIteratorRange<T>::skip(int count){
                         currentNode->getElementPtr(currCount -1),
                         (char*)zAddressLow->getAttributes(), 
                         (char*)zAddressHigh->getAttributes()
-                    )
+                    ) && currentNode != endNode //Necessary check to avoid case, when endNode is not actually intersected, but is only close to actual end
                 );
             }
             //first check to avoid checking nonexistent element

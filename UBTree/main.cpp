@@ -110,7 +110,7 @@ void benchmark_uint16(int dims, int recordsNum, int queryNum, int iterations, in
         iter = tree.searchRangeIterator(lQr, hQr);
         int volume = iter->skip(-1);
         volumes[i] = volume;
-        std::cout << "(" << iter->rectangleCalls << ", " << iter->isIntersectedCalls << "); ";
+        std::cout << "(" << iter->rectangleCalls + iter->initRectangeCalls << ", " << iter->isIntersectedCalls + iter->initIsIntersectedCalls << "); ";
         delete iter;
     }
     auto t4 = std::chrono::high_resolution_clock::now();
@@ -131,8 +131,8 @@ void benchmark_uint16(int dims, int recordsNum, int queryNum, int iterations, in
 		iter = tree.searchRangeIteratorStack(lQr, hQr);
 		int volume = iter->skip(-1);
 		volumesStack[i] = volume;
-        std::cout << "(" << iter->rectangleCalls << ", " << iter->isIntersectedCalls << "); ";
-		delete iter;
+        std::cout << "(" << iter->rectangleCalls + iter->initRectangeCalls << ", " << iter->isIntersectedCalls + iter->initIsIntersectedCalls << "); ";
+        delete iter;
 	}
     auto t4s = std::chrono::high_resolution_clock::now();
     std::cout << std::endl;
@@ -143,6 +143,28 @@ void benchmark_uint16(int dims, int recordsNum, int queryNum, int iterations, in
     maxVolume = *std::max_element(volumesStack, volumesStack + queryNum);
     sumVolume = std::accumulate(volumesStack, volumesStack + queryNum, 0);
     printf("Volume Stack: Min: %d, Max: %d, Avg: %.2f\n\n", minVolume, maxVolume, (float)sumVolume/queryNum);
+
+    int* volumesStackBin = new int[queryNum];
+    auto t3sb = std::chrono::high_resolution_clock::now();
+    for (int i = 0; i < queryNum; i++) {
+        lQr.setTuple(lqrData + i * dims, dims);
+        hQr.setTuple(hqrData + i * dims, dims);
+        iter = tree.searchRangeIteratorStackBin(lQr, hQr);
+        int volume = iter->skip(-1);
+        volumesStackBin[i] = volume;
+        std::cout << "(" << iter->rectangleCalls+iter->initRectangeCalls << ", " << iter->isIntersectedCalls+iter->initIsIntersectedCalls << "); ";
+        delete iter;
+    }
+    auto t4sb = std::chrono::high_resolution_clock::now();
+    std::cout << std::endl;
+    std::chrono::duration<double> time_span_search_stack_bin = std::chrono::duration_cast<std::chrono::duration<double>>(t4sb - t3sb);
+    printf("Search Stack: Time: %.2fs, Queries:%d, Throughput: %.2f op/s.\n", time_span_search_stack_bin.count(), queryNum, GetThroughput(queryNum, time_span_search_stack_bin.count(), 1));
+    //print min, max, avg volume
+    minVolume = *std::min_element(volumesStackBin, volumesStackBin + queryNum);
+    maxVolume = *std::max_element(volumesStackBin, volumesStackBin + queryNum);
+    sumVolume = std::accumulate(volumesStackBin, volumesStackBin + queryNum, 0);
+    printf("Volume Stack: Min: %d, Max: %d, Avg: %.2f\n\n", minVolume, maxVolume, (float)sumVolume / queryNum);
+
     //benchmark point queries, take points from data
     int* pointVolumes = new int[queryNum];
     auto t5 = std::chrono::high_resolution_clock::now();
@@ -166,6 +188,10 @@ void benchmark_uint16(int dims, int recordsNum, int queryNum, int iterations, in
     delete []lqrData;
     delete []hqrData;
     delete []volumes;
+    delete []volumesStack;
+    delete []volumesStackBin;
+    delete []pointVolumes;
+
 }
 
 void mediumTest(){
@@ -336,6 +362,19 @@ void smallTestCase(){
     std::cout << "Skipped: " <<iter->skip(-1) << std::endl;
     delete iter;
 
+    iter = tree.searchRangeIteratorStackBin(lQr, hQr);
+    std::cout << "ZAddrs Found: ";
+    while (iter->hasNext()) {
+        cTuple<u_int8_t>* tuple = iter->next();
+        tree.getZTools()->transformZAddressToData((char*)tuple->getAttributes(), reconstruction);
+        container.setTuple((u_int8_t*)reconstruction, 2);
+        tuple->printAsZaddress(); std::cout << ", ";
+    }
+    std::cout << std::endl;
+    iter->reset();
+    std::cout << "Skipped: " << iter->skip(-1) << std::endl;
+    delete iter;
+
     lqrData[0] = 7;
     lqrData[1] = 7;
     iter = tree.searchPointIterator(lQr);
@@ -423,11 +462,76 @@ void testFastVSBsr(){
     bool fastRes = tree.getZTools()->IsInRectangle_fast_8(zAddrTest, zAddrLow, zAddrHigh);
     printf("BSR: %d, Fast: %d\n", bsrRes, fastRes);
 }
+void testLeaks() {
+    //Tuples are okay
+    /*
+    cTuple<int>** tuples = new cTuple<int>*[100000];
+    for (int i = 0; i < 100000; i++) {
+        //test tuple deletion
+        tuples[i] = new cTuple<int>(new int[2] {0x7, 0x1}, 2);
+    }
+    for (int i = 0; i < 100000; i++) {
+		delete tuples[i];
+	}
+    delete []tuples;
+
+    cTuple<int>** tuples2 = new cTuple<int>*[100000];
+    int* testData = new int[2] {0x7, 0x1};
+    for (int i = 0; i < 100000; i++) {
+        tuples2[i] = new cTuple<int>(testData, 2, true);
+    }
+    for (int i = 0; i < 100000; i++) {
+        delete tuples2[i];
+    }
+    delete []tuples2;
+    delete []testData;
+    */
+    for (int i = 0; i < 10; i++) {
+        cBpTree<int, int> tree(128, 32, 32);
+        int* data = new int[128];
+        cTuple<int> tupleContainer = cTuple<int>(data, 128, true);
+        for (int n = 0; n < 100000; n++) {
+            for(int j = 0; j < 128; j++){
+			    data[j] = rand() % 256;
+		    }
+		    tree.insert(tupleContainer);
+            tree.remove(tupleContainer);
+        }
+        printf("BpTree MB: %.3f\n", BytesToMB(tree.getBpTreeBytes()));
+		delete [] data;
+    }
+    int p = 0;
+}
 int main() {
     //zAddressTranslationTest();
     //smallTestCase();
     //mediumTest();
-    benchmark_uint16(4, 1e6, 50, 1, 128, 64, 0.001);
+    //testLeaks();
+    /*
+    */
+    benchmark_uint16(2, 1e4, 20, 1, 8, 16, 0.01);
+    benchmark_uint16(2, 1e5, 20, 1, 16, 16, 0.001);
+    benchmark_uint16(2, 1e6, 20, 1, 32, 32, 0.0001);
+
+    benchmark_uint16(4, 1e4, 20, 1, 8, 16, 0.01);
+    benchmark_uint16(4, 1e5, 20, 1, 16, 16, 0.001);
+    benchmark_uint16(4, 1e6, 20, 1, 32, 32, 0.0001);
+
+    benchmark_uint16(8, 1e4, 20, 1, 8, 16, 0.01);
+    benchmark_uint16(8, 1e5, 20, 1, 16, 16, 0.001);
+    benchmark_uint16(8, 1e6, 20, 1, 32, 32, 0.0001);
+
+    benchmark_uint16(16, 1e4, 20, 1, 8, 16, 0.01);
+    benchmark_uint16(16, 1e5, 20, 1, 16, 16, 0.001);
+    benchmark_uint16(16, 1e6, 20, 1, 32, 32, 0.0001);
+
+    benchmark_uint16(64, 1e4, 20, 1, 8, 16, 0.01);
+    benchmark_uint16(64, 1e5, 20, 1, 16, 16, 0.001);
+    benchmark_uint16(64, 1e6, 20, 1, 32, 32, 0.0001);
+
+    benchmark_uint16(256, 1e4, 20, 1, 8, 16, 0.01);
+    benchmark_uint16(256, 1e5, 20, 1, 16, 16, 0.001);
+    benchmark_uint16(256, 1e6, 20, 1, 32, 32, 0.0001);
     //testFastVSBsr();
     return 0;
 }
