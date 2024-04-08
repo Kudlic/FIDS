@@ -7,21 +7,74 @@
 #include <stdio.h>
 #include <random>
 #include <numeric>
-
+#include "cGaussianTupleGenerator.h"
 
 #define u_int8_t unsigned char
 #define u_int16_t unsigned short
 #define u_int32_t unsigned int
 #define u_int64_t unsigned long long
 
+//struct for query results, should contain time, volume, number of rectangles, number of isIntersected calls
+struct QueryResult {
+	double time;
+	int volume;
+	int rectangles;
+	int isIntersected;
+};
+
 int benchmarks = 0;
 float GetThroughput(int opsCount, float period, int unit = 1000000)
 {
     return ((float)opsCount / unit) / period;
 }
+void printStatistics(QueryResult* results, int queryNum) {
+	int minVolume = results[0].volume;
+	int maxVolume = results[0].volume;
+	double sumTime = 0;
+	int sumVolume = 0;
+	int sumRectangles = 0;
+	int sumIsIntersected = 0;
+    for (int i = 0; i < queryNum; i++) {
+		sumTime += results[i].time;
+		sumVolume += results[i].volume;
+		sumRectangles += results[i].rectangles;
+		sumIsIntersected += results[i].isIntersected;
+        if (results[i].volume < minVolume) {
+			minVolume = results[i].volume;
+		}
+        if (results[i].volume > maxVolume) {
+			maxVolume = results[i].volume;
+		}
+	}
+	printf("Volume: Min: %d, Max: %d, Avg: %.2f\n", minVolume, maxVolume, (float)sumVolume/queryNum);
+	printf("Throughput: %.2f op/s\n", GetThroughput(queryNum, sumTime, 1));
+	printf("Rectangles: Avg: %.2f\n", (float)sumRectangles/queryNum);
+	printf("IsIntersected: Avg: %.2f\n", (float)sumIsIntersected/queryNum);
+}   
 float BytesToMB(int bytes){
     return (float)bytes / 1024 / 1024;
 }
+
+template<typename T>
+void ComputeQueryRectangle(cTuple<T>& t, cTuple<T>& ql, cTuple<T>& qh, cTreeMetadata* sd, uint rectangleSize) {
+    for (uint j = 0; j < sd->n; j++)
+    {
+        T v = t.getValue(j);
+        T v_low = v - rectangleSize;
+        if (v_low > v || v_low < 0) {
+            v_low = 0;
+        }
+        T v_hi = v + rectangleSize;
+        if (v_hi < v) {
+            v_hi = UINT32_MAX;
+        }
+
+        ql.setValue(j, v_low);
+        qh.setValue(j, v_hi);
+    }
+}
+
+
 void benchmark_uint16(int dims, int recordsNum, int queryNum, int iterations, int innerNodeCap = 32, int leafNodeCap = 32, float querySelectivity = 0.04){
     cBpTree<uint16_t, uint16_t> tree = cBpTree<uint16_t, uint16_t>(dims, innerNodeCap, leafNodeCap);
     uint16_t* data = new uint16_t[recordsNum * dims];
@@ -502,13 +555,120 @@ void testLeaks() {
     }
     int p = 0;
 }
+
+void newRangeQueryTest() {
+	cBpTree<int, int> tree(8, 16, 16);
+	cGaussianTupleGenerator<int> generator = cGaussianTupleGenerator<int>(8, 1000000, 1000, 696969);
+    generator.generateRandom();
+    while (generator.hasNext()) {
+		cTuple<int>* tuple = generator.nextTuple();
+		tree.insert(*tuple);
+	}
+    tree.printMetadata();
+	printf("BpTree MB: %.3f\n", BytesToMB(tree.getBpTreeBytes()));
+
+	cTuple<int>* lQr = new cTuple<int>(8);
+	cTuple<int>* hQr = new cTuple<int>(8);
+
+    generator.reset();
+    for (int i = 0; i < 100; i++) {
+		cTuple<int>* tuple = generator.nextTuple();
+		ComputeQueryRectangle(*tuple, *lQr, *hQr, tree.getMetadata(), 100* sqrt(tree.getMetadata()->n));
+		cBpTreeIterator<int>* iter = tree.searchRangeIterator(*lQr, *hQr);
+		int volume = iter->skip(-1);
+        std::cout << "Query: ";
+        lQr->printTuple();
+        std::cout << " - ";
+        hQr->printTuple();
+		std::cout << "; Volume: " << volume << std::endl;
+		delete iter;
+	}
+    delete lQr;
+    delete hQr;
+
+}   
+void new_benchmark_uint16(int dims, int recordsNum, int queryNum, uint16_t maxVal=1000, float recSize = 100, int innerNodeCap = 32, int leafNodeCap = 32) {
+    cBpTree<uint16_t, uint16_t> tree = cBpTree<uint16_t, uint16_t>(dims, innerNodeCap, leafNodeCap);
+    cGaussianTupleGenerator<uint16_t> generator = cGaussianTupleGenerator<uint16_t>(dims, recordsNum, maxVal, 1704);
+    generator.generateRandom();
+    auto t1 = std::chrono::high_resolution_clock::now();
+    while (generator.hasNext()) {
+		cTuple<uint16_t>* tuple = generator.nextTuple();
+		tree.insert(*tuple);
+	}
+    auto t2 = std::chrono::high_resolution_clock::now();
+    std::chrono::duration<double> time_span_insert = std::chrono::duration_cast<std::chrono::duration<double>>(t2 - t1);
+
+    QueryResult* qResRangeStack = new QueryResult[queryNum];
+    QueryResult* qResRangeStackBin = new QueryResult[queryNum];
+    QueryResult* qResRange = new QueryResult[queryNum];
+
+    cTuple<uint16_t>* lQr = new cTuple<uint16_t>(dims);
+    cTuple<uint16_t>* hQr = new cTuple<uint16_t>(dims);
+    generator.reset();
+    for (int i = 0; i < queryNum; i++) {
+        //init of a query
+        cTuple<uint16_t>* tuple = generator.nextTuple();
+        ComputeQueryRectangle(*tuple, *lQr, *hQr, tree.getMetadata(), recSize);
+        //Stack query
+        auto t3 = std::chrono::high_resolution_clock::now();
+        cBpTreeIterator<uint16_t>* iter = tree.searchRangeIteratorStack(*lQr, *hQr);
+        int volume = iter->skip(-1);
+        auto t4 = std::chrono::high_resolution_clock::now();
+        std::chrono::duration<double> time_span_search = std::chrono::duration_cast<std::chrono::duration<double>>(t4 - t3);
+        qResRangeStack[i].volume = volume;
+        qResRangeStack[i].time = time_span_search.count();
+        qResRangeStack[i].rectangles = iter->rectangleCalls + iter->initRectangeCalls;
+        qResRangeStack[i].isIntersected = iter->isIntersectedCalls + iter->initIsIntersectedCalls;
+        delete iter;
+        //StackBin query
+        t3 = std::chrono::high_resolution_clock::now();
+        iter = tree.searchRangeIteratorStackBin(*lQr, *hQr);
+        volume = iter->skip(-1);
+        t4 = std::chrono::high_resolution_clock::now();
+        time_span_search = std::chrono::duration_cast<std::chrono::duration<double>>(t4 - t3);
+        qResRangeStackBin[i].volume = volume;
+        qResRangeStackBin[i].time = time_span_search.count();
+        qResRangeStackBin[i].rectangles = iter->rectangleCalls + iter->initRectangeCalls;
+        qResRangeStackBin[i].isIntersected = iter->isIntersectedCalls + iter->initIsIntersectedCalls;
+        delete iter;
+        //Sequential range query
+        t3 = std::chrono::high_resolution_clock::now();
+        iter = tree.searchRangeIterator(*lQr, *hQr);
+        volume = iter->skip(-1);
+        t4 = std::chrono::high_resolution_clock::now();
+        time_span_search = std::chrono::duration_cast<std::chrono::duration<double>>(t4 - t3);
+        qResRange[i].volume = volume;
+        qResRange[i].time = time_span_search.count();
+        qResRange[i].rectangles = iter->rectangleCalls + iter->initRectangeCalls;
+        qResRange[i].isIntersected = iter->isIntersectedCalls + iter->initIsIntersectedCalls;
+        delete iter;
+    }
+    //Print results    
+    printf("Insert: Time: %.2fs, Records:%d, Throughput: %.2f mil. op/s.\n\n", time_span_insert.count(), recordsNum, GetThroughput(recordsNum, time_span_insert.count()));
+    tree.printMetadata();
+    printf("BpTree MB: %.3f\n", BytesToMB(tree.getBpTreeBytes()));
+    //Print search results, use printStatistics
+    printf("\nSearch Stack: \n");
+    printStatistics(qResRangeStack, queryNum);
+    printf("\nSearch Stack Bin: \n");
+    printStatistics(qResRangeStackBin, queryNum);
+    printf("\nSearch Range: \n");
+    printStatistics(qResRange, queryNum);
+    delete lQr;
+    delete hQr;
+    delete[] qResRangeStack;
+    delete[] qResRangeStackBin;
+    delete[] qResRange;
+
+}
+
 int main() {
     //zAddressTranslationTest();
     //smallTestCase();
     //mediumTest();
     //testLeaks();
     /*
-    */
     benchmark_uint16(2, 1e4, 20, 1, 8, 16, 0.01);
     benchmark_uint16(2, 1e5, 20, 1, 16, 16, 0.001);
     benchmark_uint16(2, 1e6, 20, 1, 32, 32, 0.0001);
@@ -532,6 +692,9 @@ int main() {
     benchmark_uint16(256, 1e4, 20, 1, 8, 16, 0.01);
     benchmark_uint16(256, 1e5, 20, 1, 16, 16, 0.001);
     benchmark_uint16(256, 1e6, 20, 1, 32, 32, 0.0001);
+    */
     //testFastVSBsr();
+    //newRangeQueryTest();
+    new_benchmark_uint16(16, 1e6, 100, 100000, 20000 * sqrt(16), 64, 64);
     return 0;
 }

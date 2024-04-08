@@ -10,6 +10,7 @@ public:
     cTuple(T* attributes, int n, bool isWrapper = 0);
     ~cTuple();
     void setTuple(T* attributes, int n);
+    void setValue(int index, T value);
     void printTuple();
     void printTupleHex();
     void printAsZaddress();
@@ -22,6 +23,7 @@ public:
     float getTupleDistance(cTuple<T>& tuple, int n = -1);
     float getTupleRangeDistance(cTuple<T>& tuple1, cTuple<T>& tuple2, int n = -1);
     T* getAttributes() { return attributes; }
+    T getValue(int index) { return attributes[index]; }
     int getN() { return n; }
     
     T* attributes;
@@ -62,22 +64,27 @@ void cTuple<T>::setTuple(T* attributes, int n) {
     this->attributes = attributes;
     this->n = n;
 }
+template<typename T>
+void cTuple<T>::setValue(int index, T value) {
+	// Implementation for setValue method
+	this->attributes[index] = value;
+}
 
 template<typename T>
 void cTuple<T>::printTuple() {
-    printf("Tuple: ");
+    printf("(");
     for(int i = 0; i < n; i++){
         printf("%d ", attributes[i]);
     }
-    printf("\n");
+    printf(")");
 }
 template<typename T>
 void cTuple<T>::printTupleHex() {
-    printf("Tuple: ");
+    printf("(");
     for(int i = 0; i < n; i++){
         printf("%x ", attributes[i]);
     }
-    printf("\n");
+    printf(")");
 }
 /*
 template<typename T>
