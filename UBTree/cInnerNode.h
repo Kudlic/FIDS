@@ -258,6 +258,7 @@ bool cInnerNode<T>::addElement(cTuple<T>* tupleLow, cTuple<T>* tupleHigh, cNode<
         sizeof(cNode<T>*)
     );
     this->incrementCount();
+    this->metadata->innerElemCount++;
     return true;
 }
 template<typename T>
@@ -276,6 +277,7 @@ bool cInnerNode<T>::deleteElement(int index) {
         this->metadata->nDataElementInnerSize * (this->getCount() - index - 1)
     );
     this->incrementCount(-1);
+    this->metadata->innerElemCount--;
     return true;
 }
 

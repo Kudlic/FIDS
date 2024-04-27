@@ -45,6 +45,9 @@ void cGaussianTupleGenerator<T>::generateRandom() {
 	for (int i = 0; i < dimensions * count; i++) {
 		double val = distribution(generator);
 		if(val < 0) val *= -1;
+		while (val > 1) {
+			val = val / 2;
+		}
 		data[i] = (T)(val * maxValue);
 	}
 }

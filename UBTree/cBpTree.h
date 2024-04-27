@@ -39,6 +39,10 @@ public:
     cZAddrUtils* getZTools();
     bool insert(cTuple<T>& tuple);
     bool remove(cTuple<T>& tuple);
+
+    bool insert(char* zAddr);
+    bool remove(char* zAddr);
+
     //int searchLinkedList(cTuple<T>& tupleLow, cTuple<T>& tupleHigh);
     cBpTreeIteratorRange<T>* searchRangeIterator(cTuple<T>& tupleLow, cTuple<T>& tupleHigh);
     cBpTreeIteratorRangeStack<T>* searchRangeIteratorStack(cTuple<T>& tupleLow, cTuple<T>& tupleHigh);
@@ -82,11 +86,15 @@ cZAddrUtils* cBpTree<T, B>::getZTools(){
 }
 template<typename T, typename B>
 bool cBpTree<T, B>::insert(cTuple<T>& tuple) {
-    //TODO: dont forget to dealloc
     char* zAddress = new char[this->metadata->zAddressBytes];
     cTuple<char> zAddrTuple = cTuple<char>((char*)zAddress, this->metadata->zAddressBytes); //This is a form of smart pointer, it will deallocate zAddress when it goes out of scope
     this->zTools->transformDataToZAddress((char*)tuple.getAttributes(), zAddress);
-    //cTuple<T> zAddrTuple = cTuple<T>((T*)zAddress, this->metadata->n);
+    return this->insert(zAddress);
+}
+
+template<typename T, typename B>
+bool cBpTree<T, B>::insert(char* zAddress) {
+    //TODO: dont forget to dealloc
 
     //Initiate a node stack
     cStack<cNode<T>*> stack = cStack<cNode<T>*>(this->metadata->order);
@@ -218,16 +226,17 @@ bool cBpTree<T, B>::insert(cTuple<T>& tuple) {
     }
     return true;
 }
+template<typename T, typename B>
+bool cBpTree<T, B>::remove(cTuple<T>& tuple) {
+    char* zAddress = new char[this->metadata->zAddressBytes];
+    cTuple<char> zAddrTuple = cTuple<char>((char*)zAddress, this->metadata->zAddressBytes); //This is a form of smart pointer, it will deallocate zAddress when it goes out of scope
+    this->zTools->transformDataToZAddress((char*)tuple.getAttributes(), zAddress);
+    return this->remove(zAddress);
+}
 
 //First try to find the appropriate record using between on ranges, preemptively stop if not found
 template<typename T, typename B>
-bool cBpTree<T, B>::remove(cTuple<T>& tuple){
-
-    //TODO: dont forget to dealloc
-    char * zAddress = new char[this->metadata->zAddressBytes];
-    cTuple<char> zAddrTuple = cTuple<char>((char*)zAddress, this->metadata->zAddressBytes); //This is a form of smart pointer, it will deallocate zAddress when it goes out of scope
-    this->zTools->transformDataToZAddress((char*)tuple.getAttributes(), zAddress);
-    //cTuple<T> * zAddrTuple = new cTuple<T>((T*)zAddress, this->metadata->zAddressBytes);
+bool cBpTree<T, B>::remove(char* zAddress){
 
     //Initiate a node stack
     cStack<cNode<T>*> stack = cStack<cNode<T>*>(this->metadata->order);

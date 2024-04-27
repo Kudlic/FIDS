@@ -8,6 +8,7 @@
 #include <random>
 #include <numeric>
 #include "cGaussianTupleGenerator.h"
+#include "cDatasetTupleGenerator.h"
 
 #define u_int8_t unsigned char
 #define u_int16_t unsigned short
@@ -663,6 +664,183 @@ void new_benchmark_uint16(int dims, int recordsNum, int queryNum, uint16_t maxVa
 
 }
 
+void bench_data_uint32(const std::string& filename, int queryNum, float * recSizes, int recCount, int innerNodeCap = 32, int leafNodeCap = 32) {
+    cDatasetTupleGenerator<uint32_t> generator = cDatasetTupleGenerator<uint32_t>(filename);
+    int dims = generator.getDimensions();
+    int recordsNum = generator.getCount();
+    cBpTree<uint32_t, uint32_t> tree = cBpTree<uint32_t, uint32_t>(dims, innerNodeCap, leafNodeCap);
+    char* data = new char[dims * sizeof(uint32_t) * recordsNum];
+    long long i = 0;
+    while (generator.hasNext()) {
+		cTuple<uint32_t>* tuple = generator.nextTuple();
+		char* dataPtr = data + (i * dims * sizeof(uint32_t));
+		tree.getZTools()->transformDataToZAddress((char*)tuple->getAttributes(), dataPtr);
+        i++;
+	}
+
+    auto t1 = std::chrono::high_resolution_clock::now();
+    for(i = 0; i < recordsNum; i++){
+        tree.insert(data + (i * dims * sizeof(uint32_t)));
+    }
+    auto t2 = std::chrono::high_resolution_clock::now();
+    std::chrono::duration<double> time_span_insert = std::chrono::duration_cast<std::chrono::duration<double>>(t2 - t1);
+    delete[] data;
+    tree.printMetadata();
+    printf("BpTree MB: %.3f\n", BytesToMB(tree.getBpTreeBytes()));    
+
+
+    cTuple<uint32_t>* lQr = new cTuple<uint32_t>(dims);
+    cTuple<uint32_t>* hQr = new cTuple<uint32_t>(dims);
+    for (int r = 0; r < recCount; r++) {
+        QueryResult* qResRangeStack = new QueryResult[queryNum];
+        QueryResult* qResRangeStackBin = new QueryResult[queryNum];
+        QueryResult* qResRange = new QueryResult[queryNum];
+        generator.reset();
+        for (int i = 0; i < queryNum; i++) {
+            //init of a query
+			cTuple<uint32_t>* tuple = generator.nextTuple();
+			ComputeQueryRectangle(*tuple, *lQr, *hQr, tree.getMetadata(), recSizes[r]);
+            //tuple->printTuple(); lQr->printTuple(); hQr->printTuple();
+            //printf("\n");
+			//Stack query
+			auto t3 = std::chrono::high_resolution_clock::now();
+			cBpTreeIterator<uint32_t>* iter = tree.searchRangeIteratorStack(*lQr, *hQr);
+			int volume = iter->skip(-1);
+			auto t4 = std::chrono::high_resolution_clock::now();
+			std::chrono::duration<double> time_span_search = std::chrono::duration_cast<std::chrono::duration<double>>(t4 - t3);
+			qResRangeStack[i].volume = volume;
+			qResRangeStack[i].time = time_span_search.count();
+			qResRangeStack[i].rectangles = iter->rectangleCalls + iter->initRectangeCalls;
+			qResRangeStack[i].isIntersected = iter->isIntersectedCalls + iter->initIsIntersectedCalls;
+			delete iter;
+			//StackBin query
+			t3 = std::chrono::high_resolution_clock::now();
+			iter = tree.searchRangeIteratorStackBin(*lQr, *hQr);
+			volume = iter->skip(-1);
+			t4 = std::chrono::high_resolution_clock::now();
+			time_span_search = std::chrono::duration_cast<std::chrono::duration<double>>(t4 - t3);
+			qResRangeStackBin[i].volume = volume;
+			qResRangeStackBin[i].time = time_span_search.count();
+			qResRangeStackBin[i].rectangles = iter->rectangleCalls + iter->initRectangeCalls;
+			qResRangeStackBin[i].isIntersected = iter->isIntersectedCalls + iter->initIsIntersectedCalls;
+			delete iter;
+            //Sequential range query
+            t3 = std::chrono::high_resolution_clock::now();
+            iter = tree.searchRangeIterator(*lQr, *hQr);
+            volume = iter->skip(-1);
+            t4 = std::chrono::high_resolution_clock::now();
+            time_span_search = std::chrono::duration_cast<std::chrono::duration<double>>(t4 - t3);
+            qResRange[i].volume = volume;
+            qResRange[i].time = time_span_search.count();
+            qResRange[i].rectangles = iter->rectangleCalls + iter->initRectangeCalls;
+            qResRange[i].isIntersected = iter->isIntersectedCalls + iter->initIsIntersectedCalls;
+            delete iter;
+            if (!(qResRange[i].volume == qResRangeStack[i].volume && qResRangeStackBin[i].volume == qResRangeStack[i].volume)) {
+                printf("%d, %d, %d\n", qResRange[i].volume, qResRangeStack[i].volume, qResRangeStackBin[i].volume);
+			}
+
+        }
+        //data collection for current rectangle done
+        double stackTime = 0;
+        double stackBinTime = 0;
+        double rangeTime = 0;
+
+        double stackVolume = 0;
+        double stackBinVolume = 0;
+        double rangeVolume = 0;
+
+        for (int i = 0; i < queryNum; i++) {
+            //printf("   Subresult: %d, %d\n", recSizes[r], qResRangeStack[i].volume);
+
+			stackTime += qResRangeStack[i].time;
+            stackBinTime += qResRangeStackBin[i].time;
+            rangeTime += qResRange[i].time;
+
+            stackVolume += qResRangeStack[i].volume;
+            stackBinVolume += qResRangeStackBin[i].volume;
+            rangeVolume += qResRange[i].volume;
+		}   
+        //print query data, first goes id of used algo, then time, then volume, then recCalls, then isIntersectedCalls
+        //actually no, id, recSize, time and avgSize is good enough
+        printf("Stack, %.2f, %.8f, %.3f\n", recSizes[r], stackTime / queryNum, stackVolume / queryNum);
+        printf("StackBin, %.2f, %.8f, %.3f\n", recSizes[r], stackBinTime / queryNum, stackBinVolume / queryNum);
+        printf("Range, %.2f, %.8f, %.3f\n", recSizes[r], rangeTime / queryNum, rangeVolume / queryNum);
+
+        delete[] qResRangeStack;
+        delete[] qResRangeStackBin;
+        delete[] qResRange;
+    }
+    delete lQr;
+    delete hQr;
+}
+
+void graphRandomDataInsertion(int dims, int recordsNum) {
+	cBpTree<uint32_t, uint32_t> tree(dims, 64, 64);
+	cGaussianTupleGenerator<uint32_t> generator = cGaussianTupleGenerator<uint32_t>(dims, recordsNum, 1000, 696969);
+	generator.generateRandom();
+
+    char* data = new char[dims * sizeof(uint32_t) * recordsNum];
+    long long i = 0;
+    while (generator.hasNext()) {
+        cTuple<uint32_t>* tuple = generator.nextTuple();
+        char* dataPtr = data + (i * dims * sizeof(uint32_t));
+        tree.getZTools()->transformDataToZAddress((char*)tuple->getAttributes(), dataPtr);
+        i++;
+    }
+    generator.reset();
+
+    auto t1 = std::chrono::high_resolution_clock::now();
+    for (i = 0; i < recordsNum; i++) {
+        tree.insert(data + (i * dims * sizeof(uint32_t)));
+    }
+    auto t2 = std::chrono::high_resolution_clock::now();
+    std::chrono::duration<double> time_span_insert = std::chrono::duration_cast<std::chrono::duration<double>>(t2 - t1);
+	printf("%d, %.3f\n",
+        dims,
+        GetThroughput(recordsNum,time_span_insert.count(), 1));
+    delete  [] data;
+}
+void graphRandomDataPointSearch(int dims, int recordsNum) {
+    cBpTree<uint32_t, uint32_t> tree(dims, 64, 64);
+    cGaussianTupleGenerator<uint32_t> generator = cGaussianTupleGenerator<uint32_t>(dims, recordsNum, 1000, 696969);
+    generator.generateRandom();
+
+    char* data = new char[dims * sizeof(uint32_t) * recordsNum];
+    long long i = 0;
+    while (generator.hasNext()) {
+        cTuple<uint32_t>* tuple = generator.nextTuple();
+        char* dataPtr = data + (i * dims * sizeof(uint32_t));
+        tree.getZTools()->transformDataToZAddress((char*)tuple->getAttributes(), dataPtr);
+        i++;
+    }
+    generator.reset();
+
+    auto t1 = std::chrono::high_resolution_clock::now();
+    for (i = 0; i < recordsNum; i++) {
+        tree.insert(data + (i * dims * sizeof(uint32_t)));
+    }
+    auto t2 = std::chrono::high_resolution_clock::now();
+    std::chrono::duration<double> time_span_insert = std::chrono::duration_cast<std::chrono::duration<double>>(t2 - t1);
+    printf("INS: %d, %.3f\n",
+        dims,
+        GetThroughput(recordsNum, time_span_insert.count(), 1));
+
+    auto t3 = std::chrono::high_resolution_clock::now();
+    for (i = 0; i < recordsNum; i++) {
+		cTuple<uint32_t>* tuple = generator.nextTuple();
+		cBpTreeIterator<uint32_t>* iter = tree.searchPointIterator(*tuple);
+		iter->skip(-1);
+		delete iter;
+	}
+	auto t4 = std::chrono::high_resolution_clock::now();
+	std::chrono::duration<double> time_span_search = std::chrono::duration_cast<std::chrono::duration<double>>(t4 - t3);
+	printf("PQ: %d, %.3f\n",
+        		dims,
+        		GetThroughput(recordsNum, time_span_search.count(), 1));    
+    delete[] data;
+}
+
+
 int main() {
     //zAddressTranslationTest();
     //smallTestCase();
@@ -695,6 +873,33 @@ int main() {
     */
     //testFastVSBsr();
     //newRangeQueryTest();
-    new_benchmark_uint16(16, 1e6, 100, 100000, 20000 * sqrt(16), 64, 64);
+    
+    /*
+    new_benchmark_uint16(16,    1e6, 10, 100000, 2000 * sqrt(16), 64, 64);
+    new_benchmark_uint16(32,    1e6, 10, 100000, 2500 * sqrt(32), 64, 64);
+    new_benchmark_uint16(64,    1e6, 10, 100000, 2500 * sqrt(64), 64, 64);
+    new_benchmark_uint16(128,   1e6, 10, 100000, 2000 * sqrt(128), 64, 64);
+    */
+    
+    /*
+    cDatasetTupleGenerator<int> generator = cDatasetTupleGenerator<int>("./KDCUP/Test.txt");
+    while(generator.hasNext()){
+		cTuple<int>* tuple = generator.nextTuple();
+		tuple->printTuple();
+	}
+    */
+    /*
+    int dims[] = { 4,8,16,32,64,96,128 };
+    int dimsCnt = 7;
+    int iterations = 3;
+    for (int iter = 0; iter < iterations; iter++) {
+        for (int i = 0; i < dimsCnt; i++) {
+			graphRandomDataInsertion(dims[i], 1000000);
+		}
+	}
+    */
+    float recSizes[] = { 10, 20, 30, 40, 50, 60, 80, 100, 120, 150, 200, 300, 400 };
+    bench_data_uint32("./Dataset/KDCUP.txt", 1000, recSizes, 13, 150, 150);
+
     return 0;
 }
