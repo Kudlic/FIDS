@@ -11,7 +11,7 @@
 //Iterator could also store stack if we dont want to utilise linked list in leaf nodes  
 
 template<typename T>
-class cBpTreeIterator {
+class cUBTreeIterator {
     protected:
         cNode<T>* root;
         cZAddrUtils* zTools;
@@ -24,8 +24,8 @@ class cBpTreeIterator {
         int rectangleCalls;
         int isIntersectedCalls;
 
-        cBpTreeIterator(cNode<T>* root, cTreeMetadata* metadata, cZAddrUtils* zTools);
-        virtual ~cBpTreeIterator();
+        cUBTreeIterator(cNode<T>* root, cTreeMetadata* metadata, cZAddrUtils* zTools);
+        virtual ~cUBTreeIterator();
         virtual bool hasNext() = 0;
         virtual cTuple<T>* next() = 0;
         virtual int skip(int count) = 0;
@@ -34,11 +34,11 @@ class cBpTreeIterator {
 };
 
 template<typename T>
-cBpTreeIterator<T>::cBpTreeIterator(cNode<T>* root, cTreeMetadata* metadata, cZAddrUtils* zTools)
+cUBTreeIterator<T>::cUBTreeIterator(cNode<T>* root, cTreeMetadata* metadata, cZAddrUtils* zTools)
     : root(root), metadata(metadata), zTools(zTools){ dimensions = metadata->n; rectangleCalls = 0; isIntersectedCalls = 0;
 };
 template<typename T>
-cBpTreeIterator<T>::~cBpTreeIterator(){
+cUBTreeIterator<T>::~cUBTreeIterator(){
 };
 template<typename T>
-void cBpTreeIterator<T>::resetCallCounters() { rectangleCalls = 0; isIntersectedCalls = 0; };
+void cUBTreeIterator<T>::resetCallCounters() { rectangleCalls = 0; isIntersectedCalls = 0; };

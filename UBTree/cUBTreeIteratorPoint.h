@@ -1,7 +1,7 @@
-#include "cBpTreeIterator.h"
+#include "cUBTreeIterator.h"
 
 template<typename T>
-class cBpTreeIteratorPoint : public cBpTreeIterator<T>{
+class cUBTreeIteratorPoint : public cUBTreeIterator<T>{
     protected:
         cTuple<T>* zAddress;
     //TODO: save/load state of iterator
@@ -13,16 +13,16 @@ class cBpTreeIteratorPoint : public cBpTreeIterator<T>{
         cTuple<T>* resultContainer;
         bool init() override;
     public: 
-        cBpTreeIteratorPoint(cNode<T>* root, cTuple<T>* zAddrTup, cTreeMetadata* metadata, cZAddrUtils* zTools);
-        ~cBpTreeIteratorPoint() override;
+        cUBTreeIteratorPoint(cNode<T>* root, cTuple<T>* zAddrTup, cTreeMetadata* metadata, cZAddrUtils* zTools);
+        ~cUBTreeIteratorPoint() override;
         bool hasNext() override;
         cTuple<T>* next() override;
         int skip(int count) override;
         bool reset() override;
 };
 template<typename T>
-cBpTreeIteratorPoint<T>::cBpTreeIteratorPoint(cNode<T>* root, cTuple<T>* zAddrTup, cTreeMetadata* metadata, cZAddrUtils* zTools):
-    cBpTreeIterator<T>(root, metadata, zTools),
+cUBTreeIteratorPoint<T>::cUBTreeIteratorPoint(cNode<T>* root, cTuple<T>* zAddrTup, cTreeMetadata* metadata, cZAddrUtils* zTools):
+    cUBTreeIterator<T>(root, metadata, zTools),
     zAddress(zAddrTup)
     {
         this->init();
@@ -36,13 +36,13 @@ cBpTreeIteratorPoint<T>::cBpTreeIteratorPoint(cNode<T>* root, cTuple<T>* zAddrTu
         }
 };
 template<typename T>
-cBpTreeIteratorPoint<T>::~cBpTreeIteratorPoint(){
+cUBTreeIteratorPoint<T>::~cUBTreeIteratorPoint(){
     delete resultContainer;
     delete zAddress;
 }
 
 template<typename T>
-bool cBpTreeIteratorPoint<T>::init(){
+bool cUBTreeIteratorPoint<T>::init(){
     cNode<T>* first = this->root;
     index = -1;
 
@@ -119,13 +119,13 @@ bool cBpTreeIteratorPoint<T>::init(){
 }
 
 template<typename T>
-bool cBpTreeIteratorPoint<T>::hasNext(){
+bool cUBTreeIteratorPoint<T>::hasNext(){
     //when we went past end or we are at nullptr
     return (currentNode != nullptr);
 }
 //returns current element and moves to next if possible, otherwise sets currentNode to nullptr
 template<typename T>
-cTuple<T>* cBpTreeIteratorPoint<T>::next(){
+cTuple<T>* cUBTreeIteratorPoint<T>::next(){
     if(currentNode == nullptr){
         return nullptr;
     }
@@ -151,7 +151,7 @@ cTuple<T>* cBpTreeIteratorPoint<T>::next(){
 }
 
 template<typename T>
-int cBpTreeIteratorPoint<T>::skip(int count){
+int cUBTreeIteratorPoint<T>::skip(int count){
     int skipped = 0;
     while((skipped < count || count == -1) && this->hasNext()){//this iterates count number of elements, at start of this loop, we always have ready element in rectangle
         skipped++;
@@ -176,7 +176,7 @@ int cBpTreeIteratorPoint<T>::skip(int count){
 }
 
 template<typename T>
-bool cBpTreeIteratorPoint<T>::reset(){
+bool cUBTreeIteratorPoint<T>::reset(){
     currentNode = startNode;
     index = startIndex;
     if (currentNode != nullptr){

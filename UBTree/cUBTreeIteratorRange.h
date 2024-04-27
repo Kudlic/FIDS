@@ -1,7 +1,7 @@
-#include "cBpTreeIterator.h"
+#include "cUBTreeIterator.h"
 
 template<typename T>
-class cBpTreeIteratorRange : public cBpTreeIterator<T>{
+class cUBTreeIteratorRange : public cUBTreeIterator<T>{
     protected:
         cTuple<T>* zAddressLow;
         cTuple<T>* zAddressHigh;
@@ -16,16 +16,16 @@ class cBpTreeIteratorRange : public cBpTreeIterator<T>{
         cTuple<T>* resultContainer;
         bool init() override;
     public: 
-        cBpTreeIteratorRange(cNode<T>* root, cTuple<T>* zAddrTupLow, cTuple<T>* zAddrTupHigh, cTreeMetadata* metadata, cZAddrUtils* zTools);
-        ~cBpTreeIteratorRange() override;
+        cUBTreeIteratorRange(cNode<T>* root, cTuple<T>* zAddrTupLow, cTuple<T>* zAddrTupHigh, cTreeMetadata* metadata, cZAddrUtils* zTools);
+        ~cUBTreeIteratorRange() override;
         bool hasNext() override;
         cTuple<T>* next() override;
         int skip(int count) override;
         bool reset() override;
 };
 template<typename T>
-cBpTreeIteratorRange<T>::cBpTreeIteratorRange(cNode<T>* root, cTuple<T>* zAddrTupLow, cTuple<T>* zAddrTupHigh, cTreeMetadata* metadata, cZAddrUtils* zTools):
-    cBpTreeIterator<T>(root, metadata, zTools),
+cUBTreeIteratorRange<T>::cUBTreeIteratorRange(cNode<T>* root, cTuple<T>* zAddrTupLow, cTuple<T>* zAddrTupHigh, cTreeMetadata* metadata, cZAddrUtils* zTools):
+    cUBTreeIterator<T>(root, metadata, zTools),
     zAddressLow(zAddrTupLow),
     zAddressHigh(zAddrTupHigh)
     {
@@ -45,14 +45,14 @@ cBpTreeIteratorRange<T>::cBpTreeIteratorRange(cNode<T>* root, cTuple<T>* zAddrTu
         }
 };
 template<typename T>
-cBpTreeIteratorRange<T>::~cBpTreeIteratorRange(){
+cUBTreeIteratorRange<T>::~cUBTreeIteratorRange(){
     delete resultContainer;
     delete zAddressLow;
     delete zAddressHigh;
 }
 
 template<typename T>
-bool cBpTreeIteratorRange<T>::init(){
+bool cUBTreeIteratorRange<T>::init(){
     //TODO: Fix case, where range can be intersected, but no tuples of the range are in rectangle
     this->initIsIntersectedCalls = 0;
     this->initRectangeCalls = 0;
@@ -169,12 +169,12 @@ bool cBpTreeIteratorRange<T>::init(){
 }
 
 template<typename T>
-bool cBpTreeIteratorRange<T>::hasNext(){
+bool cUBTreeIteratorRange<T>::hasNext(){
     //when we went past end or we are at nullptr
     return !((index > currentMaxIndex && currentNode == endNode) || currentNode == nullptr);
 }
 template<typename T>
-cTuple<T>* cBpTreeIteratorRange<T>::next(){
+cTuple<T>* cUBTreeIteratorRange<T>::next(){
     bool quit = false;
     if(currentNode == nullptr){
         return nullptr;
@@ -220,7 +220,7 @@ cTuple<T>* cBpTreeIteratorRange<T>::next(){
 }
 
 template<typename T>
-int cBpTreeIteratorRange<T>::skip(int count){
+int cUBTreeIteratorRange<T>::skip(int count){
     int skipped = 0;
     if(!this->hasNext()){
         return skipped;
@@ -275,7 +275,7 @@ int cBpTreeIteratorRange<T>::skip(int count){
 }
 
 template<typename T>
-bool cBpTreeIteratorRange<T>::reset(){
+bool cUBTreeIteratorRange<T>::reset(){
     currentNode = startNode;
     index = startIndex;
     if (currentNode == endNode) {

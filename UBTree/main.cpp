@@ -1,5 +1,5 @@
 #include <iostream>
-#include "cBpTree.h"
+#include "cUBTree.h"
 #include <stdlib.h>
 #include <chrono>
 #include <algorithm>
@@ -77,7 +77,7 @@ void ComputeQueryRectangle(cTuple<T>& t, cTuple<T>& ql, cTuple<T>& qh, cTreeMeta
 
 
 void benchmark_uint16(int dims, int recordsNum, int queryNum, int iterations, int innerNodeCap = 32, int leafNodeCap = 32, float querySelectivity = 0.04){
-    cBpTree<uint16_t, uint16_t> tree = cBpTree<uint16_t, uint16_t>(dims, innerNodeCap, leafNodeCap);
+    cUBTree<uint16_t> tree = cUBTree<uint16_t>(dims, innerNodeCap, leafNodeCap);
     uint16_t* data = new uint16_t[recordsNum * dims];
     int maxVal = 64;
     //generate random n-dim data.
@@ -155,7 +155,7 @@ void benchmark_uint16(int dims, int recordsNum, int queryNum, int iterations, in
     }
     cTuple<uint16_t> lQr = cTuple<uint16_t>(lqrData, dims, true);
     cTuple<uint16_t> hQr = cTuple<uint16_t>(hqrData, dims, true);
-    cBpTreeIterator<uint16_t> *iter = nullptr;
+    cUBTreeIterator<uint16_t> *iter = nullptr;
     int* volumes = new int[queryNum];
     auto t3 = std::chrono::high_resolution_clock::now();
     for(int i = 0; i < queryNum; i++){
@@ -250,7 +250,7 @@ void benchmark_uint16(int dims, int recordsNum, int queryNum, int iterations, in
 
 void mediumTest(){
     int dims = 8;
-    cBpTree<uint8_t, uint8_t> tree = cBpTree<uint8_t, uint8_t>(dims, 32, 32);
+    cUBTree<uint8_t> tree = cUBTree<uint8_t>(dims, 32, 32);
     uint8_t* data = new uint8_t[dims];
     cTuple<uint8_t> * tupleContainer = new cTuple<uint8_t>(data, dims, true);
     //now generate every possible 8 byte tuple where values of first 4 dims range from 0-8 and insert them
@@ -285,7 +285,7 @@ void mediumTest(){
     cTuple<uint8_t> hQr = cTuple<uint8_t>(hqrData, dims, true);
     lQr.printAsZaddress(); std::cout << " - "; hQr.printAsZaddress(); std::cout << std::endl;
 
-    cBpTreeIteratorRange<uint8_t> *iter = tree.searchRangeIterator(lQr, hQr);
+    cUBTreeIteratorRange<uint8_t> *iter = tree.searchRangeIterator(lQr, hQr);
     int volumeExpected = 1;
     for(int i = 0; i < dims; i++){
         volumeExpected *= (hqrData[i] - lqrData[i] + 1);
@@ -316,7 +316,7 @@ void mediumTest(){
 
 void smallTestCase(){
     //TESTCASE 3 
-    cBpTree<u_int8_t, u_int8_t> tree(2, 8, 8);
+    cUBTree<u_int8_t> tree(2, 8, 8);
 
     // Insert some data
     srand(170400);
@@ -370,7 +370,7 @@ void smallTestCase(){
     cTuple<u_int8_t> hQr = cTuple<u_int8_t>(hqrData, 2, true); //13 , 0xD
     cTuple<u_int8_t> container = cTuple<u_int8_t>((u_int8_t*)reconstruction, 2, true);
 
-    cBpTreeIterator<u_int8_t> *iter = tree.searchRangeIterator(lQr, hQr);
+    cUBTreeIterator<u_int8_t> *iter = tree.searchRangeIterator(lQr, hQr);
     /*
     std::cout << "ZAddrs Found: ";
     while(iter->hasNext()){
@@ -475,7 +475,7 @@ void smallTestCase(){
 }
 
 void zAddressTranslationTest(){
-    cBpTree<int, int> tree(2, 5, 5);
+    cUBTree<int> tree(2, 5, 5);
     cTuple<int> tuple1 = cTuple<int>(new int[2]{0x7, 0x1}, 2);
 
     char * zAddress = nullptr;
@@ -500,7 +500,7 @@ void zAddressTranslationTest(){
     printf("ZAddressX: %llx\n", ptrZAddressXLong[0]);
 }
 void testFastVSBsr(){
-    cBpTree<short, int> tree(8, 5, 5);
+    cUBTree<short> tree(8, 5, 5);
     cTuple<short> tupleLow = cTuple<short>(new short[9]{0, 0, 0, 0, 0, 0, 0, 0, 0}, 9);
     cTuple<short> tupleHigh = cTuple<short>(new short[9]{3, 3, 3, 3, 3, 3, 3, 3, 3}, 9);
     cTuple<short> tupleTest = cTuple<short>(new short[9]{1, 1, 1, 1, 1, 1, 1, 1, 1}, 9);
@@ -541,7 +541,7 @@ void testLeaks() {
     delete []testData;
     */
     for (int i = 0; i < 10; i++) {
-        cBpTree<int, int> tree(128, 32, 32);
+        cUBTree<int> tree(128, 32, 32);
         int* data = new int[128];
         cTuple<int> tupleContainer = cTuple<int>(data, 128, true);
         for (int n = 0; n < 100000; n++) {
@@ -558,7 +558,7 @@ void testLeaks() {
 }
 
 void newRangeQueryTest() {
-	cBpTree<int, int> tree(8, 16, 16);
+	cUBTree<int> tree(8, 16, 16);
 	cGaussianTupleGenerator<int> generator = cGaussianTupleGenerator<int>(8, 1000000, 1000, 696969);
     generator.generateRandom();
     while (generator.hasNext()) {
@@ -575,7 +575,7 @@ void newRangeQueryTest() {
     for (int i = 0; i < 100; i++) {
 		cTuple<int>* tuple = generator.nextTuple();
 		ComputeQueryRectangle(*tuple, *lQr, *hQr, tree.getMetadata(), 100* sqrt(tree.getMetadata()->n));
-		cBpTreeIterator<int>* iter = tree.searchRangeIterator(*lQr, *hQr);
+		cUBTreeIterator<int>* iter = tree.searchRangeIterator(*lQr, *hQr);
 		int volume = iter->skip(-1);
         std::cout << "Query: ";
         lQr->printTuple();
@@ -589,7 +589,7 @@ void newRangeQueryTest() {
 
 }   
 void new_benchmark_uint16(int dims, int recordsNum, int queryNum, uint16_t maxVal=1000, float recSize = 100, int innerNodeCap = 32, int leafNodeCap = 32) {
-    cBpTree<uint16_t, uint16_t> tree = cBpTree<uint16_t, uint16_t>(dims, innerNodeCap, leafNodeCap);
+    cUBTree<uint16_t> tree = cUBTree<uint16_t>(dims, innerNodeCap, leafNodeCap);
     cGaussianTupleGenerator<uint16_t> generator = cGaussianTupleGenerator<uint16_t>(dims, recordsNum, maxVal, 1704);
     generator.generateRandom();
     auto t1 = std::chrono::high_resolution_clock::now();
@@ -613,7 +613,7 @@ void new_benchmark_uint16(int dims, int recordsNum, int queryNum, uint16_t maxVa
         ComputeQueryRectangle(*tuple, *lQr, *hQr, tree.getMetadata(), recSize);
         //Stack query
         auto t3 = std::chrono::high_resolution_clock::now();
-        cBpTreeIterator<uint16_t>* iter = tree.searchRangeIteratorStack(*lQr, *hQr);
+        cUBTreeIterator<uint16_t>* iter = tree.searchRangeIteratorStack(*lQr, *hQr);
         int volume = iter->skip(-1);
         auto t4 = std::chrono::high_resolution_clock::now();
         std::chrono::duration<double> time_span_search = std::chrono::duration_cast<std::chrono::duration<double>>(t4 - t3);
@@ -668,7 +668,7 @@ void bench_data_uint32(const std::string& filename, int queryNum, float * recSiz
     cDatasetTupleGenerator<uint32_t> generator = cDatasetTupleGenerator<uint32_t>(filename);
     int dims = generator.getDimensions();
     int recordsNum = generator.getCount();
-    cBpTree<uint32_t, uint32_t> tree = cBpTree<uint32_t, uint32_t>(dims, innerNodeCap, leafNodeCap);
+    cUBTree<uint32_t> tree = cUBTree<uint32_t>(dims, innerNodeCap, leafNodeCap);
     char* data = new char[dims * sizeof(uint32_t) * recordsNum];
     long long i = 0;
     while (generator.hasNext()) {
@@ -704,7 +704,7 @@ void bench_data_uint32(const std::string& filename, int queryNum, float * recSiz
             //printf("\n");
 			//Stack query
 			auto t3 = std::chrono::high_resolution_clock::now();
-			cBpTreeIterator<uint32_t>* iter = tree.searchRangeIteratorStack(*lQr, *hQr);
+			cUBTreeIterator<uint32_t>* iter = tree.searchRangeIteratorStack(*lQr, *hQr);
 			int volume = iter->skip(-1);
 			auto t4 = std::chrono::high_resolution_clock::now();
 			std::chrono::duration<double> time_span_search = std::chrono::duration_cast<std::chrono::duration<double>>(t4 - t3);
@@ -775,7 +775,7 @@ void bench_data_uint32(const std::string& filename, int queryNum, float * recSiz
 }
 
 void graphRandomDataInsertion(int dims, int recordsNum) {
-	cBpTree<uint32_t, uint32_t> tree(dims, 64, 64);
+	cUBTree<uint32_t> tree(dims, 64, 64);
 	cGaussianTupleGenerator<uint32_t> generator = cGaussianTupleGenerator<uint32_t>(dims, recordsNum, 1000, 696969);
 	generator.generateRandom();
 
@@ -801,7 +801,7 @@ void graphRandomDataInsertion(int dims, int recordsNum) {
     delete  [] data;
 }
 void graphRandomDataPointSearch(int dims, int recordsNum) {
-    cBpTree<uint32_t, uint32_t> tree(dims, 64, 64);
+    cUBTree<uint32_t> tree(dims, 64, 64);
     cGaussianTupleGenerator<uint32_t> generator = cGaussianTupleGenerator<uint32_t>(dims, recordsNum, 1000, 696969);
     generator.generateRandom();
 
@@ -828,7 +828,7 @@ void graphRandomDataPointSearch(int dims, int recordsNum) {
     auto t3 = std::chrono::high_resolution_clock::now();
     for (i = 0; i < recordsNum; i++) {
 		cTuple<uint32_t>* tuple = generator.nextTuple();
-		cBpTreeIterator<uint32_t>* iter = tree.searchPointIterator(*tuple);
+		cUBTreeIterator<uint32_t>* iter = tree.searchPointIterator(*tuple);
 		iter->skip(-1);
 		delete iter;
 	}

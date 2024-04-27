@@ -2,11 +2,12 @@
 #include <iostream>
 #include <cstring>
 #include "cTreeMetadata.h"
+#include "cZAddrUtils.h"
 
 template<typename T>
 class cNode {
 public:
-    cNode(cTreeMetadata *metadata);
+    cNode(cTreeMetadata *metadata, cZAddrUtils* zTools);
     virtual ~cNode();
     bool isLeafNode();
     bool setLeafNode(bool isLeafNode);
@@ -19,15 +20,16 @@ public:
 
 protected:
     char* nData; // Data of the node
+    cZAddrUtils * zTools; // Z-address tools
     cTreeMetadata * metadata; // Metadata of the tree
 
-    template<typename TT, typename B> friend class cBpTree;
+    template<typename TT> friend class cUBTree;
     template<typename TT> friend class cLeafNode;
     template<typename TT> friend class cInnerNode;
 };
 template<typename T>
-cNode<T>::cNode(cTreeMetadata *metadata) : 
-    metadata(metadata) {
+cNode<T>::cNode(cTreeMetadata *metadata, cZAddrUtils* zTools) : 
+    metadata(metadata), zTools(zTools) {
     // Implementation for constructor
     this->nData = nullptr;
 }

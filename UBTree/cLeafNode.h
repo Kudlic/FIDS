@@ -13,21 +13,21 @@ class cLeafNode : public cNode<T> {
     public:
     // Implementation for leaf node
     // Leaf nodes have mData structure as follows: int isLeaf, int count, T* data 
-    cLeafNode(cTreeMetadata * metadata);
+    cLeafNode(cTreeMetadata * metadata, cZAddrUtils* zTools);
     ~cLeafNode() override;
     char* getElementPtr(int index);
     cLeafNode<T>* getNodeLink();
     char* setNodeLink(cLeafNode<T>* nodeLink);
     //void printNodes(bool printSubtree = false, int level = 0, bool includeLinks = false) override;
-    int insertZAddr(char* data, cZAddrUtils* zTools);
-    int deleteZAddr(char* data, cZAddrUtils* zTools);
+    int insertZAddr(char* data);
+    int deleteZAddr(char* data);
     int deleteZAddr(int position);
     cNode<T>* split(int splitNodeIndex, cNode<T>* parent) override;
     cNode<T>* mergeRight(int posInParent, cNode<T>* parent) override;
 };
 
 template<typename T>
-cLeafNode<T>::cLeafNode(cTreeMetadata * metadata) : cNode<T>(metadata) {
+cLeafNode<T>::cLeafNode(cTreeMetadata * metadata, cZAddrUtils* zTools) : cNode<T>(metadata, zTools) {
     this->nData = new char[metadata->nDataSizeLeaf];
     this->setCount(0);
     this->setLeafNode(true);
@@ -60,7 +60,7 @@ char* cLeafNode<T>::setNodeLink(cLeafNode<T>* nodeLink) {
 }
 
 template<typename T>
-int cLeafNode<T>::insertZAddr(char* data, cZAddrUtils* zTools) {
+int cLeafNode<T>::insertZAddr(char* data) {
     // Implementation for insertTuple method
     int count = this->getCount();
     if(count >= this->metadata->maxLeafNodeElements) { return -1; }
@@ -70,7 +70,7 @@ int cLeafNode<T>::insertZAddr(char* data, cZAddrUtils* zTools) {
     int i = 0;
     bool found = false;
     for(; i < count; i++) {
-        if(zTools->isZAddrLT(data, this->getElementPtr(i))){
+        if(this->zTools->isZAddrLT(data, this->getElementPtr(i))){
             //i--;//go back, because we want to insert before this element
             found = true;
             break;
@@ -96,14 +96,14 @@ int cLeafNode<T>::insertZAddr(char* data, cZAddrUtils* zTools) {
 }
 
 template<typename T>
-int cLeafNode<T>::deleteZAddr(char* data, cZAddrUtils* zTools) {
+int cLeafNode<T>::deleteZAddr(char* data) {
     // Implementation for deleteTuple method
     int count = this->getCount();
     if(count == 0) { return -1; }
     int i = 0;
     bool found = false;
     for(; i < count; i++) {
-        if(zTools->isZAddrEQ(data, this->getElementPtr(i))){
+        if(this->zTools->isZAddrEQ(data, this->getElementPtr(i))){
             found = true;
             break;
         }
@@ -151,7 +151,7 @@ cNode<T>* cLeafNode<T>::split(int splitNodeIndex, cNode<T>* parent) {
     int count = this->getCount();
     if(count < this->metadata->maxLeafNodeElements)
         return nullptr;
-    cLeafNode* second = new cLeafNode<T>(this->metadata);
+    cLeafNode* second = new cLeafNode<T>(this->metadata, this->zTools);
     //copy second half of elements to second node
     memcpy(
         second->nData + this->metadata->nDataStartBShift, 
@@ -168,7 +168,7 @@ cNode<T>* cLeafNode<T>::split(int splitNodeIndex, cNode<T>* parent) {
     //take care of parent node, init if not initialized and set parent of second node, This can happen only once
     if(parentNode == nullptr){
         //create new parent node
-        parentNode = new cInnerNode<T>(this->metadata);
+        parentNode = new cInnerNode<T>(this->metadata, this->zTools);
         this->metadata->order++;
         //set first element of parent node, also describable as first InnerNode element and parent of split leafNode
         parentNode->addElement(this);

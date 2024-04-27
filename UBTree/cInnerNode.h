@@ -13,7 +13,7 @@ template<typename T>
 class cInnerNode : public cNode<T> {
 public:
     // inner nodes have mData structure as follows: int isLeaf, int count, [range[i], cNode* child[i]], where range is (tupleLow, tupleHigh), values in child are >= tupleLow and <= tupleHigh
-    cInnerNode(cTreeMetadata * metadata);
+    cInnerNode(cTreeMetadata * metadata, cZAddrUtils* zTools);
     ~cInnerNode() override;
     //method to be called, when we need to pass root to child without destroying it
     //returns child of the node and clears it so it does not get destroyed
@@ -25,8 +25,8 @@ public:
     char* getElementPtr(int index);
     
     //Customised for zAddr to avoid bothering with tuple types
-    bool widenHighZAddr(int index, char* zAddr, cZAddrUtils *zTools);
-    bool widenLowZAddr(int index, char* zAddr, cZAddrUtils *zTools);
+    bool widenHighZAddr(int index, char* zAddr);
+    bool widenLowZAddr(int index, char* zAddr);
     bool setHighZAddr(int index, char* zAddr);
     bool setLowZAddr(int index, char* zAddr);
     //Should work for zAddresses and tuples, works with stored data, makes T tuples and compare EQ, which works for both zAddr and tuples
@@ -46,7 +46,7 @@ public:
 };
 
 template<typename T>
-cInnerNode<T>::cInnerNode(cTreeMetadata * metadata): cNode<T>(metadata) {
+cInnerNode<T>::cInnerNode(cTreeMetadata * metadata, cZAddrUtils* zTools): cNode<T>(metadata, zTools) {
     this->nData = new char[metadata->nDataSizeInner];
     this->setCount(0);
     this->setLeafNode(false);
@@ -103,12 +103,12 @@ char* cInnerNode<T>::getElementPtr(int index) {
 }
 
 template<typename T>
-bool cInnerNode<T>::widenHighZAddr(int index, char* zAddr, cZAddrUtils *zTools) {
+bool cInnerNode<T>::widenHighZAddr(int index, char* zAddr) {
     if(index < 0 || index >= this->getCount())
         return false;
     //If tupleHigh is lower than tuple, widen it
     char* zAddrHigh = this->getTupleHighPtr(index);
-    if(zTools->isZAddrGT(zAddr, zAddrHigh)){
+    if(this->zTools->isZAddrGT(zAddr, zAddrHigh)){
         memcpy( 
             this->getTupleHighPtr(index), 
             zAddr, 
@@ -120,12 +120,12 @@ bool cInnerNode<T>::widenHighZAddr(int index, char* zAddr, cZAddrUtils *zTools) 
 }
 
 template<typename T>
-bool cInnerNode<T>::widenLowZAddr(int index, char* zAddr, cZAddrUtils *zTools) {
+bool cInnerNode<T>::widenLowZAddr(int index, char* zAddr) {
     if(index < 0 || index >= this->getCount())
         return false;
     //If tupleLow is Higher than tuple, widen it
     char* zAddrLow = this->getTupleLowPtr(index);
-    if(zTools->isZAddrLT(zAddr, zAddrLow)){
+    if(this->zTools->isZAddrLT(zAddr, zAddrLow)){
         memcpy(
             this->getTupleLowPtr(index), 
             zAddr, 
@@ -290,7 +290,7 @@ cNode<T>* cInnerNode<T>::split(int splitNodeIndex, cNode<T>* parent) {
     int count = this->getCount();
     if(count < this->metadata->maxInnerNodeElements)
         return nullptr;
-    cInnerNode<T>* second = new cInnerNode<T>(this->metadata);
+    cInnerNode<T>* second = new cInnerNode<T>(this->metadata, this->zTools);
     //copy second half of elements to second node
     memcpy(
         second->nData + this->metadata->nDataStartBShift, 
@@ -307,7 +307,7 @@ cNode<T>* cInnerNode<T>::split(int splitNodeIndex, cNode<T>* parent) {
     //take care of parent node, init if not initialized and set parent of second node, This can happen only once
     if(parentNode == nullptr){
         //create new parent node
-        parentNode = new cInnerNode<T>(this->metadata);
+        parentNode = new cInnerNode<T>(this->metadata, this->zTools);
         this->metadata->order++;
         //set first element of parent node, also describable as first InnerNode element and parent of split leafNode
         parentNode->addElement(this);

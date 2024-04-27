@@ -1,11 +1,11 @@
 #pragma once
 #pragma once
-#include "cBpTreeIterator.h"
+#include "cUBTreeIterator.h"
 #include "cStack.h"
 #include <stack>
 
 template<typename T>
-class cBpTreeIteratorRangeStackBin : public cBpTreeIterator<T> {
+class cUBTreeIteratorRangeStackBin : public cUBTreeIterator<T> {
 private:
     struct halvingRange {
         cNode<T>* node;
@@ -21,16 +21,16 @@ protected:
     cTuple<T>* resultContainer;
     bool init() override;
 public:
-    cBpTreeIteratorRangeStackBin(cNode<T>* root, cTuple<T>* zAddrTupLow, cTuple<T>* zAddrTupHigh, cTreeMetadata* metadata, cZAddrUtils* zTools);
-    ~cBpTreeIteratorRangeStackBin() override;
+    cUBTreeIteratorRangeStackBin(cNode<T>* root, cTuple<T>* zAddrTupLow, cTuple<T>* zAddrTupHigh, cTreeMetadata* metadata, cZAddrUtils* zTools);
+    ~cUBTreeIteratorRangeStackBin() override;
     bool hasNext() override;
     cTuple<T>* next() override;
     int skip(int count) override;
     bool reset() override;
 };
 template<typename T>
-cBpTreeIteratorRangeStackBin<T>::cBpTreeIteratorRangeStackBin(cNode<T>* root, cTuple<T>* zAddrTupLow, cTuple<T>* zAddrTupHigh, cTreeMetadata* metadata, cZAddrUtils* zTools) :
-    cBpTreeIterator<T>(root, metadata, zTools),
+cUBTreeIteratorRangeStackBin<T>::cUBTreeIteratorRangeStackBin(cNode<T>* root, cTuple<T>* zAddrTupLow, cTuple<T>* zAddrTupHigh, cTreeMetadata* metadata, cZAddrUtils* zTools) :
+    cUBTreeIterator<T>(root, metadata, zTools),
     zAddressLow(zAddrTupLow),
     zAddressHigh(zAddrTupHigh)
 {   
@@ -43,7 +43,7 @@ cBpTreeIteratorRangeStackBin<T>::cBpTreeIteratorRangeStackBin(cNode<T>* root, cT
     this->resultContainer = new cTuple<T>(metadata->n, true);
 };
 template<typename T>
-cBpTreeIteratorRangeStackBin<T>::~cBpTreeIteratorRangeStackBin() {
+cUBTreeIteratorRangeStackBin<T>::~cUBTreeIteratorRangeStackBin() {
     delete resultContainer;
     delete zAddressLow;
     delete zAddressHigh;
@@ -51,7 +51,7 @@ cBpTreeIteratorRangeStackBin<T>::~cBpTreeIteratorRangeStackBin() {
 }
 
 template<typename T>
-bool cBpTreeIteratorRangeStackBin<T>::init() {
+bool cUBTreeIteratorRangeStackBin<T>::init() {
     //New stack works as follows:
     //  Root is pushed to stack with nodePos = -1
     //  Before diving into any innerNode, all innerNodes must be tested for intersection
@@ -142,12 +142,12 @@ bool cBpTreeIteratorRangeStackBin<T>::init() {
 }
 
 template<typename T>
-bool cBpTreeIteratorRangeStackBin<T>::hasNext() {
+bool cUBTreeIteratorRangeStackBin<T>::hasNext() {
     //when we went past end or we are at nullptr
     return !stack->empty();
 }
 template<typename T>
-cTuple<T>* cBpTreeIteratorRangeStackBin<T>::next() {
+cTuple<T>* cUBTreeIteratorRangeStackBin<T>::next() {
     if (stack->empty()) {
         return nullptr;
     }
@@ -242,7 +242,7 @@ cTuple<T>* cBpTreeIteratorRangeStackBin<T>::next() {
 }
 
 template<typename T>
-int cBpTreeIteratorRangeStackBin<T>::skip(int count) {
+int cUBTreeIteratorRangeStackBin<T>::skip(int count) {
     int skipped = 0;
     if (stack->empty()) {
         return skipped;
@@ -343,7 +343,7 @@ int cBpTreeIteratorRangeStackBin<T>::skip(int count) {
 }
 
 template<typename T>
-bool cBpTreeIteratorRangeStackBin<T>::reset() {
+bool cUBTreeIteratorRangeStackBin<T>::reset() {
     delete this->stack;
     this->stack = new std::stack<halvingRange>;
     this->initIsIntersectedCalls = 0;

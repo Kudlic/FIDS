@@ -5,7 +5,7 @@
 class cTreeMetadata {
 public:
     // Constructor
-    cTreeMetadata(int n, int attributeSize, int blockSize, int maxInnerNodeElements, int maxLeafNodeElements);
+    cTreeMetadata(int n, int attributeSize, int maxInnerNodeElements, int maxLeafNodeElements);
 
     void printMetadata();
     double getBpTreeAllocatedBytes();
@@ -44,18 +44,17 @@ public:
 
     //UBTree specific
     int zAddressBytes;
-    int zBlockSize;
 
-    template<typename T, typename B> friend class cBpTree;
+    template<typename T> friend class cUBTree;
     template<typename T> friend class cNode;
     template<typename T> friend class cLeafNode;
     template<typename T> friend class cInnerNode;
-    template<typename T> friend class cBpTreeIteratorRange;
+    template<typename T> friend class cUBTreeIteratorRange;
     template<typename T> friend class cZAddrUtilsTemplate;
                          friend class cZAddrUtils;
 };
 
-cTreeMetadata::cTreeMetadata(int n, int blockSize, int attributeSize, int maxInnerNodeElements, int maxLeafNodeElements) : 
+cTreeMetadata::cTreeMetadata(int n, int attributeSize, int maxInnerNodeElements, int maxLeafNodeElements) : 
     n(n),
     attributeSize(attributeSize),
     maxInnerNodeElements(maxInnerNodeElements),
@@ -86,7 +85,6 @@ cTreeMetadata::cTreeMetadata(int n, int blockSize, int attributeSize, int maxInn
 
         //UBTree specific
         zAddressBytes = n * attributeSize;
-        zBlockSize = blockSize;
 }
 
 void cTreeMetadata::printMetadata() {

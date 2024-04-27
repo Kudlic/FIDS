@@ -1,9 +1,9 @@
 #pragma once
-#include "cBpTreeIterator.h"
+#include "cUBTreeIterator.h"
 #include "cStack.h"
 
 template<typename T>
-class cBpTreeIteratorRangeStack : public cBpTreeIterator<T> {
+class cUBTreeIteratorRangeStack : public cUBTreeIterator<T> {
 protected:
     cTuple<T>* zAddressLow;
     cTuple<T>* zAddressHigh;
@@ -14,16 +14,16 @@ protected:
     cTuple<T>* resultContainer;
     bool init() override;
 public:
-    cBpTreeIteratorRangeStack(cNode<T>* root, cTuple<T>* zAddrTupLow, cTuple<T>* zAddrTupHigh, cTreeMetadata* metadata, cZAddrUtils* zTools);
-    ~cBpTreeIteratorRangeStack() override;
+    cUBTreeIteratorRangeStack(cNode<T>* root, cTuple<T>* zAddrTupLow, cTuple<T>* zAddrTupHigh, cTreeMetadata* metadata, cZAddrUtils* zTools);
+    ~cUBTreeIteratorRangeStack() override;
     bool hasNext() override;
     cTuple<T>* next() override;
     int skip(int count) override;
     bool reset() override;
 };
 template<typename T>
-cBpTreeIteratorRangeStack<T>::cBpTreeIteratorRangeStack(cNode<T>* root, cTuple<T>* zAddrTupLow, cTuple<T>* zAddrTupHigh, cTreeMetadata* metadata, cZAddrUtils* zTools) :
-    cBpTreeIterator<T>(root, metadata, zTools),
+cUBTreeIteratorRangeStack<T>::cUBTreeIteratorRangeStack(cNode<T>* root, cTuple<T>* zAddrTupLow, cTuple<T>* zAddrTupHigh, cTreeMetadata* metadata, cZAddrUtils* zTools) :
+    cUBTreeIterator<T>(root, metadata, zTools),
     zAddressLow(zAddrTupLow),
     zAddressHigh(zAddrTupHigh)
 {   
@@ -34,7 +34,7 @@ cBpTreeIteratorRangeStack<T>::cBpTreeIteratorRangeStack(cNode<T>* root, cTuple<T
     resultContainer = new cTuple<T>(metadata->n, true);
 };
 template<typename T>
-cBpTreeIteratorRangeStack<T>::~cBpTreeIteratorRangeStack() {
+cUBTreeIteratorRangeStack<T>::~cUBTreeIteratorRangeStack() {
     delete resultContainer;
     delete zAddressLow;
     delete zAddressHigh;
@@ -42,7 +42,7 @@ cBpTreeIteratorRangeStack<T>::~cBpTreeIteratorRangeStack() {
 }
 
 template<typename T>
-bool cBpTreeIteratorRangeStack<T>::init() {
+bool cUBTreeIteratorRangeStack<T>::init() {
     //TODO: Fix case, where range can be intersected, but no tuples of the range are in rectangle
     //TOMBYDO: Rethink stack, you could save up to order-1 * innerNodeSize + 1 * leafNodeSize
     // This way stack could schedule all nodes needed to examine and nodes could be added
@@ -90,12 +90,12 @@ bool cBpTreeIteratorRangeStack<T>::init() {
 }
 
 template<typename T>
-bool cBpTreeIteratorRangeStack<T>::hasNext() {
+bool cUBTreeIteratorRangeStack<T>::hasNext() {
     //when we went past end or we are at nullptr
     return !nodeStack->isEmpty();
 }
 template<typename T>
-cTuple<T>* cBpTreeIteratorRangeStack<T>::next() {
+cTuple<T>* cUBTreeIteratorRangeStack<T>::next() {
     if (nodeStack->isEmpty()) {
         return nullptr;
     }
@@ -162,7 +162,7 @@ cTuple<T>* cBpTreeIteratorRangeStack<T>::next() {
 }
 
 template<typename T>
-int cBpTreeIteratorRangeStack<T>::skip(int count) {
+int cUBTreeIteratorRangeStack<T>::skip(int count) {
     int skipped = 0;
     while ((count == -1 || skipped < count) && !nodeStack->isEmpty()) {
         skipped++;
@@ -222,7 +222,7 @@ int cBpTreeIteratorRangeStack<T>::skip(int count) {
 }
 
 template<typename T>
-bool cBpTreeIteratorRangeStack<T>::reset() {
+bool cUBTreeIteratorRangeStack<T>::reset() {
     delete nodeStack;
     nodeStack = new cStack<cNode<T>*>(this->metadata->order);
     nodeStack->push(this->root, 0);
