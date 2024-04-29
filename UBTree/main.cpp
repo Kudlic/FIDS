@@ -474,89 +474,6 @@ void smallTestCase(){
     delete []reconstruction;
 }
 
-void zAddressTranslationTest(){
-    cUBTree<int> tree(2, 5, 5);
-    cTuple<int> tuple1 = cTuple<int>(new int[2]{0x7, 0x1}, 2);
-
-    char * zAddress = nullptr;
-    tree.getZTools()->transformDataToZAddress((char*)tuple1.getAttributes(), zAddress);
-    cTuple<int> tuple2 = cTuple<int>((int*)zAddress, tree.getMetadata()->n, true);
-
-    char *unZAddressed = nullptr; // Change the declaration to reference type
-    tree.getZTools()->transformZAddressToData((char*)tuple2.getAttributes(), unZAddressed); // Use the address of operator to pass the reference
-
-    cTuple<int> tuple3 = cTuple<int>((int*)unZAddressed, 2, true);
-
-    tuple1.printTupleHex();
-    tuple2.printTupleHex();
-    tuple3.printTupleHex();
-
-    unsigned int* zAddressX = new unsigned int [2]{0x89abcdef, 0x01234567}; //takto funguje spravne, na vyssi pozici je vyznamnejsi byte
-    unsigned char* ptrZAddressX = (unsigned char*)zAddressX;
-    unsigned short* ptrZAddressXShort = (unsigned short*)zAddressX;
-    u_int64_t * ptrZAddressXLong = (u_int64_t*)zAddressX;
-    printf("ZAddressX: %x %x %x %x %x %x %x %x\n", ptrZAddressX[7], ptrZAddressX[6], ptrZAddressX[5], ptrZAddressX[4], ptrZAddressX[3], ptrZAddressX[2], ptrZAddressX[1], ptrZAddressX[0]);
-    printf("ZAddressX: %x %x %x %x\n", ptrZAddressXShort[3], ptrZAddressXShort[2], ptrZAddressXShort[1], ptrZAddressXShort[0]);
-    printf("ZAddressX: %llx\n", ptrZAddressXLong[0]);
-}
-void testFastVSBsr(){
-    cUBTree<short> tree(8, 5, 5);
-    cTuple<short> tupleLow = cTuple<short>(new short[9]{0, 0, 0, 0, 0, 0, 0, 0, 0}, 9);
-    cTuple<short> tupleHigh = cTuple<short>(new short[9]{3, 3, 3, 3, 3, 3, 3, 3, 3}, 9);
-    cTuple<short> tupleTest = cTuple<short>(new short[9]{1, 1, 1, 1, 1, 1, 1, 1, 1}, 9);
-
-    char* zAddrLow = nullptr;
-    char* zAddrHigh = nullptr;
-    char* zAddrTest = nullptr;
-    tree.getZTools()->transformDataToZAddress((char*)tupleLow.getAttributes(), zAddrLow);
-    tree.getZTools()->transformDataToZAddress((char*)tupleHigh.getAttributes(), zAddrHigh);
-    tree.getZTools()->transformDataToZAddress((char*)tupleTest.getAttributes(), zAddrTest);
-
-    bool bsrRes = tree.getZTools()->IsInRectangle_bsr_32(zAddrTest, zAddrLow, zAddrHigh);
-    bool fastRes = tree.getZTools()->IsInRectangle_fast_8(zAddrTest, zAddrLow, zAddrHigh);
-    printf("BSR: %d, Fast: %d\n", bsrRes, fastRes);
-}
-void testLeaks() {
-    //Tuples are okay
-    /*
-    cTuple<int>** tuples = new cTuple<int>*[100000];
-    for (int i = 0; i < 100000; i++) {
-        //test tuple deletion
-        tuples[i] = new cTuple<int>(new int[2] {0x7, 0x1}, 2);
-    }
-    for (int i = 0; i < 100000; i++) {
-		delete tuples[i];
-	}
-    delete []tuples;
-
-    cTuple<int>** tuples2 = new cTuple<int>*[100000];
-    int* testData = new int[2] {0x7, 0x1};
-    for (int i = 0; i < 100000; i++) {
-        tuples2[i] = new cTuple<int>(testData, 2, true);
-    }
-    for (int i = 0; i < 100000; i++) {
-        delete tuples2[i];
-    }
-    delete []tuples2;
-    delete []testData;
-    */
-    for (int i = 0; i < 10; i++) {
-        cUBTree<int> tree(128, 32, 32);
-        int* data = new int[128];
-        cTuple<int> tupleContainer = cTuple<int>(data, 128, true);
-        for (int n = 0; n < 100000; n++) {
-            for(int j = 0; j < 128; j++){
-			    data[j] = rand() % 256;
-		    }
-		    tree.insert(tupleContainer);
-            tree.remove(tupleContainer);
-        }
-        printf("BpTree MB: %.3f\n", BytesToMB(tree.getBpTreeBytes()));
-		delete [] data;
-    }
-    int p = 0;
-}
-
 void newRangeQueryTest() {
 	cUBTree<int> tree(8, 16, 16);
 	cGaussianTupleGenerator<int> generator = cGaussianTupleGenerator<int>(8, 1000000, 1000, 696969);
@@ -750,8 +667,6 @@ void bench_data_uint32(const std::string& filename, int queryNum, float * recSiz
         double rangeVolume = 0;
 
         for (int i = 0; i < queryNum; i++) {
-            //printf("   Subresult: %d, %d\n", recSizes[r], qResRangeStack[i].volume);
-
 			stackTime += qResRangeStack[i].time;
             stackBinTime += qResRangeStackBin[i].time;
             rangeTime += qResRange[i].time;
@@ -760,8 +675,7 @@ void bench_data_uint32(const std::string& filename, int queryNum, float * recSiz
             stackBinVolume += qResRangeStackBin[i].volume;
             rangeVolume += qResRange[i].volume;
 		}   
-        //print query data, first goes id of used algo, then time, then volume, then recCalls, then isIntersectedCalls
-        //actually no, id, recSize, time and avgSize is good enough
+        //print algo id, recSize, time and avgSize
         printf("Stack, %.2f, %.8f, %.3f\n", recSizes[r], stackTime / queryNum, stackVolume / queryNum);
         printf("StackBin, %.2f, %.8f, %.3f\n", recSizes[r], stackBinTime / queryNum, stackBinVolume / queryNum);
         printf("Range, %.2f, %.8f, %.3f\n", recSizes[r], rangeTime / queryNum, rangeVolume / queryNum);
@@ -842,10 +756,11 @@ void graphRandomDataPointSearch(int dims, int recordsNum) {
 
 
 int main() {
-    //zAddressTranslationTest();
+    //Preset test cases used for testing in early stages of project
     //smallTestCase();
     //mediumTest();
-    //testLeaks();
+
+    //Historical benchmark using selectivity for range queries, bad results
     /*
     benchmark_uint16(2, 1e4, 20, 1, 8, 16, 0.01);
     benchmark_uint16(2, 1e5, 20, 1, 16, 16, 0.001);
@@ -871,23 +786,17 @@ int main() {
     benchmark_uint16(256, 1e5, 20, 1, 16, 16, 0.001);
     benchmark_uint16(256, 1e6, 20, 1, 32, 32, 0.0001);
     */
-    //testFastVSBsr();
-    //newRangeQueryTest();
     
+    //Historical benchmark with random data
     /*
     new_benchmark_uint16(16,    1e6, 10, 100000, 2000 * sqrt(16), 64, 64);
     new_benchmark_uint16(32,    1e6, 10, 100000, 2500 * sqrt(32), 64, 64);
     new_benchmark_uint16(64,    1e6, 10, 100000, 2500 * sqrt(64), 64, 64);
     new_benchmark_uint16(128,   1e6, 10, 100000, 2000 * sqrt(128), 64, 64);
     */
-    
-    /*
-    cDatasetTupleGenerator<int> generator = cDatasetTupleGenerator<int>("./KDCUP/Test.txt");
-    while(generator.hasNext()){
-		cTuple<int>* tuple = generator.nextTuple();
-		tuple->printTuple();
-	}
-    */
+
+
+    //Benchmark for point queries and insertions
     /*
     int dims[] = { 4,8,16,32,64,96,128 };
     int dimsCnt = 7;
@@ -898,6 +807,9 @@ int main() {
 		}
 	}
     */
+
+
+    //This is a way to call becnhmarking against KDCUP dataset
     float recSizes[] = { 10, 20, 30, 40, 50, 60, 80, 100, 120, 150, 200, 300, 400 };
     bench_data_uint32("./Dataset/KDCUP.txt", 1000, recSizes, 13, 150, 150);
 

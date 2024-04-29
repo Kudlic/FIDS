@@ -58,6 +58,10 @@ cDatasetTupleGenerator<T>::cDatasetTupleGenerator(const std::string& filename) {
 
 		int index = 0;
 		while (std::getline(file, line) && index < (this->dimensions*this->count)) {
+			if (line.find_first_not_of(" \t\r\n") == std::string::npos) {
+				// Skip line if it contains only whitespace characters
+				continue;
+    		}
 			std::istringstream iss3(line);
 			std::string value;
 			while (std::getline(iss3, value, ',')) {
